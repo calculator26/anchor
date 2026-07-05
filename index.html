@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Anchor — Memory that holds</title>
+<meta name="description" content="The self-directed memorisation app for high-stakes students. Spaced retrieval, honest progress, essay chains — grounded in cognitive science.">
+<meta name="theme-color" content="#0b0f17">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icons/anchor.svg">
+<link rel="apple-touch-icon" href="icons/anchor.svg">
+<link rel="stylesheet" href="anchor.css">
+</head>
+<body>
+
+<div id="app">
+  <header class="topbar">
+    <button class="brand" data-a="home" title="Harbour — home">
+      <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="10.5" r="4.4" fill="none" stroke="currentColor" stroke-width="3.4"/>
+        <line x1="24" y1="14.9" x2="24" y2="37" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+        <line x1="15" y1="21.5" x2="33" y2="21.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+        <path d="M10 29.5 C10 37 16 41.5 24 41.5 C32 41.5 38 37 38 29.5" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+        <path d="M10 29.5 L6.5 26.5 M10 29.5 L13.8 27.4" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <path d="M38 29.5 L41.5 26.5 M38 29.5 L34.2 27.4" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/>
+      </svg>
+      <span class="brand-name">Anchor</span>
+    </button>
+
+    <nav class="topnav" id="topnav">
+      <button class="tn-btn" data-a="home" data-nav="home">Harbour</button>
+      <button class="tn-btn" data-a="chains" data-nav="chains">Chains</button>
+      <button class="tn-btn" data-a="stats" data-nav="stats">Stats</button>
+      <button class="tn-btn" data-a="data" data-nav="data">Data</button>
+    </nav>
+
+    <div class="top-right">
+      <div class="goal-chip" id="goalChip" title="Today's reviews vs your daily goal">
+        <svg viewBox="0 0 36 36" class="goal-ring">
+          <circle cx="18" cy="18" r="15" class="gr-track"/>
+          <circle cx="18" cy="18" r="15" class="gr-fill" id="goalRingFill"/>
+        </svg>
+        <span id="goalText">0/20</span>
+      </div>
+      <div class="streak-chip" id="streakChip" title="Study streak — days in a row hitting your review goal">
+        <span class="flame" aria-hidden="true">🔥</span><span id="streakN">0</span>
+      </div>
+      <button class="icon-btn" id="themeBtn" data-a="theme" title="Toggle light / dark">◐</button>
+    </div>
+  </header>
+
+  <main id="view" aria-live="polite"></main>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+<div id="fx" aria-hidden="true"></div>
+<div id="modal-root"></div>
+
+<script src="js/fsrs.js"></script>
+<script src="js/store.js"></script>
+<script src="js/seed.js"></script>
+<script src="js/ui-extra.js"></script>
+<script src="js/ui-main.js"></script>
+<script>
+  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+</script>
+</body>
+</html>

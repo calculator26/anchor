@@ -1,0 +1,14 @@
+{
+  "name": "Anchor — Memory that holds",
+  "short_name": "Anchor",
+  "description": "Self-directed memorisation for high-stakes students. Spaced retrieval, honest progress, essay chains — grounded in cognitive science.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0f17",
+  "theme_color": "#0b0f17",
+  "icons": [
+    { "src": "icons/anchor.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/anchor-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
