@@ -249,9 +249,13 @@
       if (k.charAt(0) === 'o') return;                    // order states surface on chain cards
       var ctx = resolveFacet(k);
       if (!ctx) return;
+      // The review queue exists to keep your anchors green. Only anchored
+      // cards cycle back — amber/red cards are studied from the board.
+      if (!isVerified(k)) return;
+      // Subject review = that subject's own board cards; chain links are
+      // reviewed from the Chains page (or the global queue).
       if (subjectId) {
-        var sid = ctx.subject ? ctx.subject.id : (ctx.chain ? ctx.chain.subjectId : null);
-        if (sid !== subjectId) return;
+        if (ctx.kind !== 'item' || ctx.subject.id !== subjectId) return;
       }
       var exam = ctx.subject ? ctx.subject.examDate : null;
       var r = FSRS.rNow(st.srs, now);

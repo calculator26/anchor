@@ -1,5 +1,6 @@
-/* Anchor service worker — cache-first app shell for full offline use. */
-var CACHE = 'anchor-v1.0.0';
+/* Anchor service worker — network-first with offline fallback.
+   Online users always get the newest deploy; offline still works from cache. */
+var CACHE = 'anchor-v2';
 var SHELL = [
   './',
   './index.html',
@@ -29,11 +30,15 @@ self.addEventListener('activate', function (e) {
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then(function (hit) {
-      return hit || fetch(e.request).then(function (res) {
+    fetch(e.request).then(function (res) {
+      if (res && res.ok && new URL(e.request.url).origin === location.origin) {
         var copy = res.clone();
         caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
-        return res;
+      }
+      return res;
+    }).catch(function () {
+      return caches.match(e.request).then(function (hit) {
+        return hit || caches.match('./index.html');
       });
     })
   );

@@ -30,7 +30,7 @@
       else if (v === 'arrange') html = V.arrange(App.route);
       else if (v === 'nextlink') html = V.nextlink(App.route);
       else if (v === 'recital') html = V.recital(App.route);
-      else if (v === 'stats') html = V.stats();
+      else if (v === 'stats') html = V.stats(App.route);
       else if (v === 'data') html = V.data();
       document.getElementById('view').innerHTML = html;
       App.renderTop();
@@ -56,10 +56,13 @@
       });
     },
 
+    // let other modules (chain link cards) check browse-reveal state
+    isRev: function (k) { return !!REV[k]; },
+
     startSession: function (keys, origin, label) {
       if (!keys.length) { FX.toast('Nothing to study there yet.', ''); return; }
       App.sess = {
-        q: keys.slice(0, 200), i: 0, revealed: false, typed: '',
+        q: keys.slice(0, 200), i: 0, revealed: false, typed: '', skipped: 0,
         got: 0, miss: 0, greens: 0, banked: 0, combo: 0, maxCombo: 0,
         origin: origin || { v: 'home' }, label: label || 'Review', done: false
       };
@@ -197,7 +200,10 @@
     if (D.chains.length) {
       var chDue = 0;
       D.chains.forEach(function (ch) {
-        Store.chainFacets(ch).forEach(function (f) { var h = U.hold(f.key); if (h && h.due) chDue++; });
+        Store.chainFacets(ch).forEach(function (f) {
+          var h = U.hold(f.key);
+          if (Store.isVerified(f.key) && h && h.due) chDue++;
+        });
       });
       html += '<div class="sec-head" style="margin-top:34px">Chains</div>'
         + '<div class="due-callout" style="border-left-color:var(--accent);border-color:var(--line)"><div>'
@@ -234,6 +240,10 @@
   ACTIONS['home'] = function () { App.go({ v: 'home' }); };
   ACTIONS['chains'] = function () { App.go({ v: 'chains' }); };
   ACTIONS['stats'] = function () { App.go({ v: 'stats' }); };
+  ACTIONS['stats-subj'] = function (el) {
+    var s = el.getAttribute('data-s');
+    App.go(s ? { v: 'stats', s: s } : { v: 'stats' });
+  };
   ACTIONS['data'] = function () { App.go({ v: 'data' }); };
   ACTIONS['subject'] = function (el) { App.go({ v: 'subject', id: el.getAttribute('data-id') }); };
   ACTIONS['seed-load'] = function () {
@@ -275,7 +285,8 @@
       var keys = tabFacetKeys(subj, t);
       var v = keys.filter(Store.isVerified).length;
       html += '<button class="tp-pill' + (t === tab ? ' on' : '') + '" data-a="board-tab" data-id="' + subj.id + '" data-t="' + t.id + '">'
-        + U.esc(t.name) + '<span class="fillbar" style="width:' + U.pct(v, keys.length) + '%"></span></button>';
+        + U.esc(t.name) + '<span class="fillbar" style="width:' + U.pct(v, keys.length) + '%"></span></button>'
+        + (t === tab ? '<button class="tool tp-tool" title="Rename or delete this tab" data-a="tab-edit" data-id="' + subj.id + '" data-t="' + t.id + '">✎</button>' : '');
     });
     var dueN = Store.dueFacets(subj.id).length;
     html += '<button class="review-btn' + (dueN ? ' has-due' : '') + '" data-a="review-subject" data-id="' + subj.id + '">'
@@ -362,7 +373,7 @@
       + sc(c.r, 'Not yet', 'var(--red)', 'honest starting point')
       + sc(c.u, 'New', 'var(--text3)', 'not touched yet')
       + '<div class="stat click' + (dueN ? ' hot' : '') + '" data-a="review-subject" data-id="' + subj.id + '"><div class="n">' + dueN + '</div>'
-      + '<div class="l">⚓ Due for review</div><div class="sub">' + (dueN ? 'tap to strengthen' : 'all holding strong') + '</div></div>'
+      + '<div class="l">⚓ Due for review</div><div class="sub">' + (dueN ? 'anchored cards fading — tap to strengthen' : 'all anchors holding strong') + '</div></div>'
       + '</div>';
   }
 
@@ -391,7 +402,7 @@
       + '<div class="tools"><button class="tool" title="Edit this card" data-a="card-edit" data-id="' + card.id + '" data-subj="' + subj.id + '">✎</button></div>';
     if (!revealed) {
       var revLbl = facet === 'def' ? 'definition' : facet === 'key' ? 'key facts' : 'answer';
-      html += '<div class="hidden-panel" data-a="reveal" data-k="' + key + '">👁 Reveal ' + revLbl + ' — try to say it first</div>';
+      html += '<div class="hidden-panel" data-a="reveal" data-k="' + key + '">👁 Reveal ' + revLbl + ' — say it or whiteboard it first</div>';
     } else {
       html += '<div class="c-text">' + U.esc(Store.facetText(card, facet)) + '</div>'
         + (card.note ? '<div class="note-box"><span class="note-lbl">Note</span><span>' + U.esc(card.note) + '</span></div>' : '')
@@ -418,6 +429,8 @@
         + (isDue ? '⚓ Due — recall now ~' + hold.pct + '%' : 'Holding ' + hold.pct + '% · ~' + (hold.S < 1 ? '&lt;1' : Math.round(hold.S)) + 'd stability')
         + '</div><div class="hold-bar"><div class="hold-fill" style="width:' + hold.pct + '%;background:' + col + '"></div></div>';
     }
+
+    html += '<div class="hold-line" style="color:var(--text3)">🕒 ' + (st && st.srs ? 'Last reviewed ' + U.ago(st.srs.last) : 'Never reviewed') + '</div>';
 
     var hist = st ? st.hist.slice(-7) : [];
     html += '<div class="hist-row">' + (hist.length
@@ -470,10 +483,40 @@
     var subj = Store.subjectById(id);
     var due = Store.dueFacets(id).map(function (d) { return d.key; });
     if (!due.length) {
-      FX.toast('Nothing due in ' + subj.name + ' — everything is holding above ' + Math.round(Store.data().settings.retention * 100) + '%.', 'green');
+      FX.toast('Nothing due in ' + subj.name + ' — your anchored cards are all holding above ' + Math.round(Store.data().settings.retention * 100) + '%.', 'green');
       return;
     }
     App.startSession(due, { v: 'subject', id: id }, subj.name + ' · review');
+  };
+
+  ACTIONS['tab-edit'] = function (el) {
+    var subj = Store.subjectById(el.getAttribute('data-id'));
+    var tab = subj.tabs.filter(function (t) { return t.id === el.getAttribute('data-t'); })[0];
+    if (!tab) return;
+    Modal.open('<div class="m-title">Edit tab</div>'
+      + '<div class="m-row"><label class="m-lbl">Tab name</label><input class="m-input" id="mTabName" value="' + U.esc(tab.name) + '"></div>'
+      + '<div class="m-hint">Deleting a tab removes its ' + tab.cards.length + ' cards and their study history.</div>'
+      + '<div class="m-actions"><button class="btn warn" data-a="tab-del" data-id="' + subj.id + '" data-t="' + tab.id + '" style="margin-right:auto">Delete tab</button>'
+      + '<button class="btn" data-a="modal-close">Cancel</button>'
+      + '<button class="btn primary" data-a="tab-edit-ok" data-id="' + subj.id + '" data-t="' + tab.id + '">Save</button></div>');
+  };
+  ACTIONS['tab-edit-ok'] = function (el) {
+    var subj = Store.subjectById(el.getAttribute('data-id'));
+    var tab = subj.tabs.filter(function (t) { return t.id === el.getAttribute('data-t'); })[0];
+    var name = document.getElementById('mTabName').value.trim();
+    if (tab && name) { tab.name = name; Store.save(); }
+    Modal.close();
+    App.render();
+  };
+  ACTIONS['tab-del'] = function (el) {
+    var subj = Store.subjectById(el.getAttribute('data-id'));
+    var tabId = el.getAttribute('data-t');
+    var tab = subj.tabs.filter(function (t) { return t.id === tabId; })[0];
+    if (!tab) return;
+    Modal.confirm('Delete “' + tab.name + '”?', 'Its ' + tab.cards.length + ' cards and their study history will be permanently removed.', 'Delete tab', true, function () {
+      Store.deleteTab(subj, tabId);
+      App.go({ v: 'subject', id: subj.id });
+    });
   };
 
   ACTIONS['drill-group'] = function (el) {
@@ -538,12 +581,14 @@
 
       if (!s.revealed) {
         if (typeFirst) {
-          html += '<textarea class="type-zone" id="sessTa" placeholder="Produce it from memory — type (or say) the answer, then reveal to check.">' + U.esc(s.typed) + '</textarea>'
-            + '<div class="type-hint">Ctrl+Enter to reveal · producing first is what makes it stick</div>'
+          html += '<textarea class="type-zone" id="sessTa" placeholder="Produce it from memory — type it, say it aloud, or scribble it on a whiteboard. Then reveal to check.">' + U.esc(s.typed) + '</textarea>'
+            + '<div class="type-hint">Ctrl+Enter to reveal · typing, saying it aloud or working it on a mini-whiteboard all count — producing first is what makes it stick</div>'
             + '<div class="sess-actions"><button class="btn primary big" data-a="sess-reveal">Reveal &amp; check</button>'
-            + '<button class="btn" data-a="sess-reveal" data-skip="1">Just show me</button></div>';
+            + '<button class="btn" data-a="sess-reveal" data-skip="1">Just show me</button>'
+            + '<button class="btn" data-a="sess-skip" title="Move on without grading (S)">Skip →</button></div>';
         } else {
-          html += '<div class="hidden-panel" data-a="sess-reveal" style="min-height:120px;font-size:16px">👁 Reveal — say it from memory first</div>';
+          html += '<div class="hidden-panel" data-a="sess-reveal" style="min-height:120px;font-size:16px">👁 Reveal — say it (or whiteboard it) from memory first</div>'
+            + '<div style="margin-top:12px;text-align:right"><button class="hide-link" data-a="sess-skip">Skip this card (S) →</button></div>';
         }
       } else {
         html += '<div class="answer-block">';
@@ -555,7 +600,7 @@
           + '<button class="gbtn g2" data-a="sess-grade" data-g="2">~ Shaky<kbd>2</kbd></button>'
           + '<button class="gbtn g3" data-a="sess-grade" data-g="3">✓ Got it<kbd>3</kbd></button>'
           + '<button class="gbtn g4" data-a="sess-grade" data-g="4">⚡ Instant<kbd>4</kbd></button>'
-          + '</div><div class="type-hint" style="margin-top:10px">Grade what you produced, not what you meant.</div></div>';
+          + '</div><div class="type-hint" style="margin-top:10px">Grade what you produced, not what you meant. <button class="hide-link" data-a="sess-skip" style="margin-left:6px">Skip without grading (S) →</button></div></div>';
       }
       html += '</div>';
     }
@@ -578,6 +623,7 @@
       + '<div class="ss-stat"><div class="n" style="color:var(--green)">+' + s.greens + '</div><div class="l">anchored</div></div>'
       + '<div class="ss-stat"><div class="n" style="color:var(--accent)">+' + Math.max(0, Math.round(s.banked)) + 'd</div><div class="l">memory banked</div></div>'
       + '<div class="ss-stat"><div class="n">×' + s.maxCombo + '</div><div class="l">best combo</div></div>'
+      + ((s.skipped || 0) > 0 ? '<div class="ss-stat"><div class="n" style="color:var(--text3)">' + s.skipped + '</div><div class="l">skipped</div></div>' : '')
       + '</div>'
       + '<div class="m-actions" style="justify-content:center">'
       + '<button class="btn primary big" data-a="sess-exit">Back to the board</button>'
@@ -627,6 +673,17 @@
       s.done = true;
       if (s.greens > 0 || (s.got + s.miss >= 5 && U.pct(s.got, s.got + s.miss) >= 80)) setTimeout(FX.confetti, 350);
     }
+    App.render();
+  };
+
+  ACTIONS['sess-skip'] = function () {
+    var s = App.sess;
+    if (!s || s.done) return;
+    s.skipped = (s.skipped || 0) + 1;
+    s.i++;
+    s.revealed = false;
+    s.typed = '';
+    if (s.i >= s.q.length) s.done = true;
     App.render();
   };
 
@@ -691,7 +748,11 @@
   };
 
   // One simple Add flow: pick a tab (or make one), then add cards.
+  // The modal stays open between single-card adds so you can rattle through
+  // a whole section; ADDRUN tracks the streak.
+  var ADDRUN = null;
   ACTIONS['board-add'] = function (el) {
+    ADDRUN = { n: 0, tabId: null };
     var subj = Store.subjectById(el.getAttribute('data-id') || App.route.id);
     var tabOpts = subj.tabs.map(function (t) {
       var sel = (App.route.tab === t.id || (!App.route.tab && subj.tabs[0] === t)) ? ' selected' : '';
@@ -717,36 +778,55 @@
       + '<div id="mOne">' + single + '</div>'
       + '<div id="mBulk" style="display:none"><div class="m-row"><label class="m-lbl">One per line: <b>' + bulkHint + '</b></label>'
       + '<textarea class="m-ta" id="mLines" placeholder="' + bulkHint + '&#10;' + bulkHint + '"></textarea></div></div>'
-      + '<div class="m-actions"><button class="btn" data-a="modal-close">Cancel</button>'
-      + '<button class="btn primary" data-a="board-add-ok" data-id="' + subj.id + '">Add</button></div>',
+      + '<div class="m-hint" style="margin-top:2px">⌨ Ctrl+Enter adds the card — the window stays open so you can rattle through a whole section.</div>'
+      + '<div class="m-actions"><button class="btn" id="mDoneBtn" data-a="board-add-done">Cancel</button>'
+      + '<button class="btn primary" data-a="board-add-ok" data-id="' + subj.id + '">Add card</button></div>',
       function (root) {
-        root.querySelector('#mTab').onchange = function () {
-          root.querySelector('#mNewTabRow').style.display = this.value === '__new' ? 'block' : 'none';
-        };
+        var tabSel = root.querySelector('#mTab'), newRow = root.querySelector('#mNewTabRow');
+        function paintTab() { newRow.style.display = tabSel.value === '__new' ? 'block' : 'none'; }
+        tabSel.onchange = paintTab;
+        paintTab();   // subjects with no tabs land on "Create a new tab…" — show the name field immediately
         root.querySelector('#mKind').onchange = function () {
           root.querySelector('#mOne').style.display = this.value === 'one' ? 'block' : 'none';
           root.querySelector('#mBulk').style.display = this.value === 'bulk' ? 'block' : 'none';
         };
+        root.addEventListener('keydown', function (ev) {
+          if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') {
+            ev.preventDefault();
+            var ok = root.querySelector('[data-a="board-add-ok"]');
+            if (ok) ok.click();
+          }
+        });
       });
   };
   ACTIONS['board-add-ok'] = function (el) {
     var subj = Store.subjectById(el.getAttribute('data-id'));
-    var tabSel = document.getElementById('mTab').value;
+    var tabSelEl = document.getElementById('mTab');
     var tab;
-    if (tabSel === '__new') {
+    if (tabSelEl.value === '__new') {
       var tn = document.getElementById('mNewTab').value.trim();
       if (!tn) { FX.toast('Give the new tab a name first.', 'amber'); return; }
       tab = Store.addTab(subj, tn);
+      // fold the fresh tab into the picker so the next add reuses it
+      var opt = document.createElement('option');
+      opt.value = tab.id;
+      opt.textContent = tab.name;
+      tabSelEl.insertBefore(opt, tabSelEl.querySelector('option[value="__new"]'));
+      tabSelEl.value = tab.id;
+      document.getElementById('mNewTab').value = '';
+      document.getElementById('mNewTabRow').style.display = 'none';
     } else {
-      tab = subj.tabs.filter(function (t) { return t.id === tabSel; })[0];
+      tab = subj.tabs.filter(function (t) { return t.id === tabSelEl.value; })[0];
     }
     if (!tab) return;
+    ADDRUN = ADDRUN || { n: 0, tabId: null };
+    ADDRUN.tabId = tab.id;
     var group = document.getElementById('mGroup').value.trim() || null;
     var kind = document.getElementById('mKind').value;
-    var added = 0;
 
     if (kind === 'one') {
-      var term = document.getElementById('mTerm').value.trim();
+      var termEl = document.getElementById('mTerm');
+      var term = termEl.value.trim();
       if (!term) { FX.toast('The card needs a front.', 'amber'); return; }
       var fields = { term: term, group: group };
       if (subj.dual) {
@@ -758,8 +838,20 @@
         if (!fields.back) { FX.toast('The card needs a back.', 'amber'); return; }
       }
       Store.addCard(tab, fields);
-      added = 1;
+      ADDRUN.n++;
+      // stay open for the next card: keep tab + group, clear the card fields
+      termEl.value = '';
+      ['mDef', 'mKey', 'mBack'].forEach(function (id) {
+        var f = document.getElementById(id);
+        if (f) f.value = '';
+      });
+      termEl.focus();
+      var done = document.getElementById('mDoneBtn');
+      if (done) done.textContent = 'Done — ' + ADDRUN.n + ' added';
+      FX.toast('Card ' + ADDRUN.n + ' added ⚓ — next one', 'green', 1300);
+      App.render();   // the board behind the modal updates live
     } else {
+      var added = 0;
       document.getElementById('mLines').value.split('\n').forEach(function (line) {
         var parts = line.split('|').map(function (p) { return p.trim(); });
         if (!parts[0]) return;
@@ -770,10 +862,21 @@
         added++;
       });
       if (!added) { FX.toast('No valid lines found — check the format.', 'amber'); return; }
+      ADDRUN = null;
+      Modal.close();
+      FX.toast(added + ' cards added — go earn the green ⚓', 'green');
+      App.go({ v: 'subject', id: subj.id, tab: tab.id, f: App.route.f });
     }
+  };
+
+  ACTIONS['board-add-done'] = function () {
+    var run = ADDRUN;
+    ADDRUN = null;
     Modal.close();
-    FX.toast(added + (added === 1 ? ' card' : ' cards') + ' added — go earn the green ⚓', 'green');
-    App.go({ v: 'subject', id: subj.id, tab: tab.id, f: App.route.f });
+    if (run && run.n > 0) {
+      FX.toast(run.n + (run.n === 1 ? ' card' : ' cards') + ' added — go earn the green ⚓', 'green');
+      App.go({ v: 'subject', id: App.route.id, tab: run.tabId || App.route.tab, f: App.route.f });
+    }
   };
 
   ACTIONS['card-edit'] = function (el) {
@@ -838,6 +941,11 @@
     if (App.route.v !== 'session' || !App.sess || App.sess.done) return;
     var s = App.sess;
     var inTa = document.activeElement && document.activeElement.id === 'sessTa';
+    if ((ev.key === 's' || ev.key === 'S') && !inTa) {
+      ev.preventDefault();
+      ACTIONS['sess-skip']();
+      return;
+    }
     if (!s.revealed) {
       if ((ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) || (!inTa && (ev.key === ' ' || ev.key === 'Enter'))) {
         ev.preventDefault();

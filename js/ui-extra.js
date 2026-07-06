@@ -25,6 +25,21 @@
       if (!iso) return null;
       return Math.ceil((Date.parse(iso + 'T23:59:59') - Date.now()) / 864e5);
     },
+    // human "x ago" for review timestamps
+    ago: function (iso) {
+      if (!iso) return 'never';
+      var s = (Date.now() - Date.parse(iso)) / 1000;
+      if (s < 90) return 'just now';
+      var m = s / 60;
+      if (m < 60) return Math.round(m) + 'm ago';
+      var h = m / 60;
+      if (h < 1.5) return '1h ago';
+      if (h < 36) return Math.round(h) + 'h ago';
+      var d = h / 24;
+      if (d < 14) return Math.round(d) + 'd ago';
+      if (d < 64) return Math.round(d / 7) + 'w ago';
+      return Math.round(d / 30) + 'mo ago';
+    },
     stClass: function (key) {
       var st = Store.data().state[key];
       if (!st || !st.conf) return '';
@@ -168,11 +183,12 @@
       var k = 'c:' + ch.id + ':' + sn.id;
       var st = Store.data().state[k];
       var h = U.hold(k);
+      var v = Store.isVerified(k);
       return {
         key: k, sent: sn,
-        verified: Store.isVerified(k),
+        verified: v,
         started: !!(st && st.srs),
-        due: h ? h.due : false
+        due: v && !!(h && h.due)
       };
     });
   }
@@ -180,7 +196,8 @@
     var k = 'o:' + ch.id;
     var st = Store.data().state[k];
     var h = U.hold(k);
-    return { key: k, started: !!(st && st.srs), verified: Store.isVerified(k), due: h ? h.due : false, hold: h };
+    var v = Store.isVerified(k);
+    return { key: k, started: !!(st && st.srs), verified: v, due: v && !!(h && h.due), hold: h };
   }
   function chainForged(ch) {
     var links = chainLinkStates(ch);
@@ -236,6 +253,7 @@
            : '<span class="ch-sub">' + forged + '/' + chains.length + ' paragraphs forged</span>')
         + '<span class="ch-actions">'
         + '<button class="btn" data-a="chain-new" data-essay="' + e.id + '">＋ Paragraph</button>'
+        + '<button class="tool" title="Rename essay" data-a="essay-edit" data-id="' + e.id + '">✎</button>'
         + '<button class="tool" title="Delete essay (chains are kept)" data-a="essay-del" data-id="' + e.id + '">🗑</button></span></div>';
       if (!chains.length) html += '<div class="ch-sub" style="margin-top:8px">No paragraphs yet — add a chain for paragraph 1.</div>';
       chains.forEach(function (ch) { html += chainRow(ch); });
@@ -290,7 +308,8 @@
     var ch = Store.chainById(id);
     Modal.confirm('Delete “' + ch.title + '”?', 'The chain and its study history will be removed. This cannot be undone.', 'Delete chain', true, function () {
       Store.deleteChain(id);
-      App.render();
+      if (App.route.v === 'chain' && App.route.id === id) App.go({ v: 'chains' });
+      else App.render();
     });
   };
   ACTIONS['chain-open'] = function (el) { App.go({ v: 'chain', id: el.getAttribute('data-id') }); };
@@ -434,7 +453,69 @@
     App.go({ v: 'chain', id: ch.id });
   };
 
-  /* --- Chain board ---------------------------------------------------------- */
+  /* --- Chain board — works like the harbour: reveal, grade, earn the green --- */
+  function linkCardHTML(ch, i) {
+    var sn = ch.sentences[i];
+    var key = 'c:' + ch.id + ':' + sn.id;
+    var st = Store.data().state[key];
+    var conf = st ? st.conf : null;
+    var got = st ? st.got : 0;
+    var hold = U.hold(key);
+    var isDue = hold && hold.due;
+    var revealed = App.isRev(key);
+    var verified = Store.isVerified(key);
+    var CRIT = Store.GREEN_CRITERION;
+
+    var html = '<div class="item ' + U.stClass(key) + '" data-card="' + key + '">';
+
+    html += '<div class="cell cell-term"><div class="term-top"><span class="num">' + (i + 1) + '</span>'
+      + (isDue ? '<span class="due-pill">⚓ Review due</span>' : '')
+      + (!verified && got > 0 && got < CRIT ? '<span class="pill" title="Successful recalls — ' + CRIT + ' anchors it">⚓ ' + got + '/' + CRIT + '</span>' : '')
+      + '</div><div class="term">' + U.esc(sn.kw) + '</div>'
+      + '<div class="ctx">link ' + (i + 1) + ' of ' + ch.sentences.length + '</div></div>';
+
+    html += '<div class="cell cell-content"><div class="tools">'
+      + (i > 0 ? '<button class="tool" title="Move up" data-a="link-up" data-ch="' + ch.id + '" data-sid="' + sn.id + '">↑</button>' : '')
+      + (i < ch.sentences.length - 1 ? '<button class="tool" title="Move down" data-a="link-down" data-ch="' + ch.id + '" data-sid="' + sn.id + '">↓</button>' : '')
+      + '<button class="tool" title="Edit keyword or sentence" data-a="link-edit" data-ch="' + ch.id + '" data-sid="' + sn.id + '">✎</button>'
+      + '</div>';
+    if (!revealed) {
+      html += '<div class="hidden-panel" data-a="reveal" data-k="' + key + '">👁 Reveal sentence — say it or whiteboard it first</div>';
+    } else {
+      html += '<div class="c-text">' + U.esc(sn.text) + '</div>'
+        + '<div class="after-row"><span class="grade-hint">Did you produce it?</span>'
+        + '<button class="gbtn g1" data-a="grade" data-k="' + key + '" data-g="1">✗ Missed</button>'
+        + '<button class="gbtn g2" data-a="grade" data-k="' + key + '" data-g="2">~ Shaky</button>'
+        + '<button class="gbtn g3" data-a="grade" data-k="' + key + '" data-g="3">✓ Got it</button>'
+        + '<button class="gbtn g4" data-a="grade" data-k="' + key + '" data-g="4">⚡ Instant</button>'
+        + '<button class="hide-link" data-a="hide" data-k="' + key + '">Hide</button></div>';
+    }
+    html += '</div>';
+
+    html += '<div class="cell cell-meta"><div class="meta-lbl">Confidence' + (verified ? ' <span style="color:var(--green)">⚓</span>' : '') + '</div>'
+      + '<div class="conf-btns">'
+      + '<button class="cbtn g' + (conf === 'g' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="g"><span class="cdot"></span>Know it' + (conf === 'g' && !verified && got < CRIT ? '<span class="unv">' + got + '/' + CRIT + '</span>' : '') + '</button>'
+      + '<button class="cbtn a' + (conf === 'a' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="a"><span class="cdot"></span>Getting there</button>'
+      + '<button class="cbtn r' + (conf === 'r' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="r"><span class="cdot"></span>Not yet</button></div>';
+    if (hold) {
+      var col = U.holdColor(hold.r);
+      html += '<div class="hold-line' + (isDue ? ' due' : '') + '">'
+        + (isDue ? '⚓ Due — recall now ~' + hold.pct + '%' : 'Holding ' + hold.pct + '% · ~' + (hold.S < 1 ? '&lt;1' : Math.round(hold.S)) + 'd stability')
+        + '</div><div class="hold-bar"><div class="hold-fill" style="width:' + hold.pct + '%;background:' + col + '"></div></div>';
+    }
+    html += '<div class="hold-line" style="color:var(--text3)">🕒 ' + (st && st.srs ? 'Last reviewed ' + U.ago(st.srs.last) : 'Never reviewed') + '</div>';
+    var hist = st ? st.hist.slice(-7) : [];
+    html += '<div class="hist-row">' + (hist.length
+      ? hist.map(function (h) { return '<span class="hdot ' + (h.g >= 3 ? 'g' : h.g === 2 ? 'a' : 'r') + '" title="' + U.fmtDate(h.t) + '"></span>'; }).join('')
+      : '<span class="hist-none">no attempts yet</span>') + '</div>';
+    if (st && (st.got || st.miss)) {
+      html += '<div class="hist-score"><span class="' + (st.got ? 'hs-g' : 'hs-z') + '">✓ ' + st.got + '</span>'
+        + '<span class="' + (st.miss ? 'hs-r' : 'hs-z') + '">✗ ' + st.miss + '</span></div>';
+    }
+    html += '</div></div>';
+    return html;
+  }
+
   V.chain = function (route) {
     var ch = Store.chainById(route.id);
     if (!ch) return '<div class="empty">Chain not found.</div>';
@@ -448,7 +529,24 @@
     var html = '<button class="bh-back" data-a="chains">← Chains</button>'
       + '<div class="board-head"><div><div class="bh-title">' + U.esc(ch.title) + '</div>'
       + '<div class="bh-sub">' + (essay ? '📝 ' + U.esc(essay.title) + ' · ' : '') + (subj ? U.esc(subj.name) + ' · ' : '') + ch.sentences.length + ' links'
-      + (chainForged(ch) ? ' · <span style="color:var(--green);font-weight:800">⚓ forged — keep it polished</span>' : '') + '</div></div></div>';
+      + (chainForged(ch) ? ' · <span style="color:var(--green);font-weight:800">⚓ forged — keep it polished</span>' : '') + '</div></div>'
+      + '<div class="bh-actions"><button class="btn" data-a="chain-edit" data-id="' + ch.id + '">✎ Edit</button></div></div>';
+
+    // harbour-style stat row for the chain
+    var inprog = 0, fresh = 0;
+    links.forEach(function (l) { if (!l.verified) { if (l.started) inprog++; else fresh++; } });
+    var dueAll = dueLinks + (ord.due ? 1 : 0);
+    function sc(n, lbl, color, sub, extra) {
+      return '<div class="stat' + (extra || '') + '"' + (extra ? ' data-a="chain-drill" data-id="' + ch.id + '"' : '') + '><div class="n" style="color:' + color + '">' + n + '</div>'
+        + '<div class="l">' + lbl + '</div><div class="sub">' + sub + '</div></div>';
+    }
+    html += '<div class="statrow">'
+      + sc(done + '/' + links.length, 'Links anchored', 'var(--green)', '3+ successful recalls each')
+      + sc(inprog, 'Getting there', 'var(--amber)', 'keep recalling — 3 anchors it')
+      + sc(fresh, 'New', 'var(--text3)', 'not tested yet')
+      + sc(ord.verified ? '⚓' : (ord.started ? '…' : '—'), 'Order', ord.verified ? 'var(--green)' : 'var(--text3)', ord.verified ? 'sequence anchored' : (ord.started ? 'in training' : 'not learned yet'))
+      + sc(dueAll, 'Due for review', dueAll ? 'var(--amber)' : 'var(--text3)', dueAll ? 'tap to strengthen' : 'all holding strong', ' click' + (dueAll ? ' hot' : ''))
+      + '</div>';
 
     html += '<div class="chain-card">' + linksVisual(ch)
       + '<div class="ch-sub">' + done + '/' + links.length + ' links forged'
@@ -474,21 +572,103 @@
       + '<button class="btn primary" data-a="recital" data-id="' + ch.id + '">Full recital</button></div>';
     html += '</div>';
 
-    html += '<div class="sec-head">The chain</div><div class="game-zone">';
-    ch.sentences.forEach(function (sn, i) {
-      var st = links[i];
-      var kwHtml = '<b style="color:var(--accent)">' + U.esc(sn.kw) + '</b>';
-      var rx = null;
-      try { rx = new RegExp('\\b(' + sn.kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')\\b', 'i'); } catch (e) {}
-      var textHtml = U.esc(sn.text);
-      if (rx && rx.test(sn.text)) textHtml = U.esc(sn.text).replace(rx, '<b style="color:var(--accent)">$1</b>');
-      else textHtml = kwHtml + ' — ' + textHtml;
-      html += '<div class="rec-orig"><div class="cb-num">' + (i + 1) + ' · ' + U.esc(sn.kw.toUpperCase())
-        + (st.verified ? ' <span style="color:var(--green)">⚓</span>' : '') + '</div>'
-        + '<div class="cb-text">' + textHtml + '</div></div>';
-    });
-    html += '</div>';
+    html += '<div class="sec-head"><span>The links — test yourself, card by card</span></div>';
+    ch.sentences.forEach(function (sn, i) { html += linkCardHTML(ch, i); });
     return html;
+  };
+
+  /* --- Chain & link editing ---------------------------------------------------- */
+  function findSent(chId, sid) {
+    var ch = Store.chainById(chId);
+    if (!ch) return null;
+    var i = ch.sentences.findIndex(function (s) { return s.id === sid; });
+    return i < 0 ? null : { ch: ch, i: i, sn: ch.sentences[i] };
+  }
+  ACTIONS['link-up'] = function (el) {
+    var r = findSent(el.getAttribute('data-ch'), el.getAttribute('data-sid'));
+    if (!r || r.i === 0) return;
+    var a = r.ch.sentences;
+    a[r.i] = a[r.i - 1]; a[r.i - 1] = r.sn;
+    Store.save(); App.render();
+  };
+  ACTIONS['link-down'] = function (el) {
+    var r = findSent(el.getAttribute('data-ch'), el.getAttribute('data-sid'));
+    if (!r || r.i >= r.ch.sentences.length - 1) return;
+    var a = r.ch.sentences;
+    a[r.i] = a[r.i + 1]; a[r.i + 1] = r.sn;
+    Store.save(); App.render();
+  };
+  ACTIONS['link-edit'] = function (el) {
+    var r = findSent(el.getAttribute('data-ch'), el.getAttribute('data-sid'));
+    if (!r) return;
+    Modal.open('<div class="m-title">Edit link ' + (r.i + 1) + '</div>'
+      + '<div class="m-row"><label class="m-lbl">Keyword (your retrieval cue)</label><input class="m-input" id="mKw" maxlength="30" value="' + U.esc(r.sn.kw) + '"></div>'
+      + '<div class="m-row"><label class="m-lbl">Sentence</label><textarea class="m-ta" id="mSent">' + U.esc(r.sn.text) + '</textarea></div>'
+      + '<div class="m-actions"><button class="btn warn" data-a="link-del" data-ch="' + r.ch.id + '" data-sid="' + r.sn.id + '" style="margin-right:auto">Delete link</button>'
+      + '<button class="btn" data-a="modal-close">Cancel</button>'
+      + '<button class="btn primary" data-a="link-edit-ok" data-ch="' + r.ch.id + '" data-sid="' + r.sn.id + '">Save</button></div>');
+  };
+  ACTIONS['link-edit-ok'] = function (el) {
+    var r = findSent(el.getAttribute('data-ch'), el.getAttribute('data-sid'));
+    if (!r) return;
+    var kw = (document.getElementById('mKw').value || '').trim();
+    var text = (document.getElementById('mSent').value || '').trim();
+    if (!kw || !text) { FX.toast('Keyword and sentence both need something in them.', 'amber'); return; }
+    var dupe = r.ch.sentences.some(function (s, j) { return j !== r.i && s.kw.toLowerCase() === kw.toLowerCase(); });
+    if (dupe) { FX.toast('“' + kw + '” is already a keyword in this chain — keep them distinct.', 'amber'); return; }
+    r.sn.kw = kw; r.sn.text = text;
+    Store.save(); Modal.close(); App.render();
+  };
+  ACTIONS['link-del'] = function (el) {
+    var r = findSent(el.getAttribute('data-ch'), el.getAttribute('data-sid'));
+    if (!r) return;
+    Modal.confirm('Delete link ' + (r.i + 1) + ' (“' + r.sn.kw + '”)?', 'The sentence and its study history go with it.', 'Delete link', true, function () {
+      delete Store.data().state['c:' + r.ch.id + ':' + r.sn.id];
+      r.ch.sentences.splice(r.i, 1);
+      Store.save(); App.render();
+    });
+  };
+  ACTIONS['chain-edit'] = function (el) {
+    var ch = Store.chainById(el.getAttribute('data-id'));
+    if (!ch) return;
+    var D = Store.data();
+    Modal.open('<div class="m-title">Edit chain</div>'
+      + '<div class="m-row"><label class="m-lbl">Title</label><input class="m-input" id="mTitle" value="' + U.esc(ch.title) + '"></div>'
+      + '<div class="m-row"><label class="m-lbl">Essay</label><select class="m-select" id="mEssay"><option value="">— standalone —</option>'
+      + D.essays.map(function (e) { return '<option value="' + e.id + '"' + (ch.essayId === e.id ? ' selected' : '') + '>' + U.esc(e.title) + '</option>'; }).join('') + '</select></div>'
+      + '<div class="m-row"><label class="m-lbl">Subject</label><select class="m-select" id="mSubj"><option value="">— none —</option>'
+      + D.subjects.map(function (s) { return '<option value="' + s.id + '"' + (ch.subjectId === s.id ? ' selected' : '') + '>' + U.esc(s.name) + '</option>'; }).join('') + '</select></div>'
+      + '<div class="m-actions"><button class="btn warn" data-a="chain-del" data-id="' + ch.id + '" style="margin-right:auto">Delete chain</button>'
+      + '<button class="btn" data-a="modal-close">Cancel</button>'
+      + '<button class="btn primary" data-a="chain-edit-ok" data-id="' + ch.id + '">Save</button></div>');
+  };
+  ACTIONS['chain-edit-ok'] = function (el) {
+    var ch = Store.chainById(el.getAttribute('data-id'));
+    if (!ch) return;
+    var t = document.getElementById('mTitle').value.trim();
+    if (t) ch.title = t;
+    ch.essayId = document.getElementById('mEssay').value || null;
+    ch.subjectId = document.getElementById('mSubj').value || null;
+    Store.save(); Modal.close(); App.render();
+  };
+  ACTIONS['essay-edit'] = function (el) {
+    var e = Store.essayById(el.getAttribute('data-id'));
+    if (!e) return;
+    var subs = Store.data().subjects;
+    Modal.open('<div class="m-title">Edit essay</div>'
+      + '<div class="m-row"><label class="m-lbl">Title</label><input class="m-input" id="mTitle" value="' + U.esc(e.title) + '"></div>'
+      + '<div class="m-row"><label class="m-lbl">Subject</label><select class="m-select" id="mSubj"><option value="">— none —</option>'
+      + subs.map(function (s) { return '<option value="' + s.id + '"' + (e.subjectId === s.id ? ' selected' : '') + '>' + U.esc(s.name) + '</option>'; }).join('') + '</select></div>'
+      + '<div class="m-actions"><button class="btn" data-a="modal-close">Cancel</button>'
+      + '<button class="btn primary" data-a="essay-edit-ok" data-id="' + e.id + '">Save</button></div>');
+  };
+  ACTIONS['essay-edit-ok'] = function (el) {
+    var e = Store.essayById(el.getAttribute('data-id'));
+    if (!e) return;
+    var t = document.getElementById('mTitle').value.trim();
+    if (t) e.title = t;
+    e.subjectId = document.getElementById('mSubj').value || null;
+    Store.save(); Modal.close(); App.render();
   };
 
   ACTIONS['chain-drill'] = function (el) {
@@ -635,7 +815,7 @@
       + '<div class="game-zone"><div class="gz-title">Full recital</div>';
 
     if (!RC.submitted) {
-      html += '<div class="gz-sub">Write the whole paragraph from memory. This is the money rep — free recall beats everything else.</div>';
+      html += '<div class="gz-sub">Write the whole paragraph from memory — type it here, or do it on a whiteboard/paper first if that flows better. This is the money rep; free recall beats everything else.</div>';
       html += '<div style="margin-bottom:12px"><button class="btn" data-a="rec-skel">' + (RC.showSkel ? 'Hide' : 'Show') + ' keyword skeleton</button></div>';
       if (RC.showSkel) {
         html += '<div class="kw-skeleton">' + ch.sentences.map(function (sn, i) {
@@ -703,19 +883,25 @@
   /* ══════════════════════════════════════════════════════════════════════
      STATS — the honest dashboards
      ════════════════════════════════════════════════════════════════════ */
-  V.stats = function () {
+  V.stats = function (route) {
     var D = Store.data();
     var now = Date.now();
     var ret = D.settings.retention;
+    var selId = route && route.s ? route.s : null;
+    var selSubj = selId ? Store.subjectById(selId) : null;
+    if (selId && !selSubj) selId = null;
+
+    var subjects = selSubj ? [selSubj] : D.subjects;
+    var chains = D.chains.filter(function (ch) { return selId ? ch.subjectId === selId : true; });
 
     var rows = [];
-    D.subjects.forEach(function (subj) {
+    subjects.forEach(function (subj) {
       Store.subjectFacets(subj).forEach(function (f) {
         var st = D.state[f.key];
-        rows.push({ key: f.key, groupLbl: subj.name + ' · ' + f.tab.name, st: st, verified: Store.isVerified(f.key) });
+        rows.push({ key: f.key, groupLbl: (selSubj ? f.tab.name : subj.name + ' · ' + f.tab.name), st: st, verified: Store.isVerified(f.key) });
       });
     });
-    D.chains.forEach(function (ch) {
+    chains.forEach(function (ch) {
       var e = ch.essayId ? Store.essayById(ch.essayId) : null;
       Store.chainFacets(ch).forEach(function (f) {
         var st = D.state[f.key];
@@ -727,18 +913,26 @@
     var verified = rows.filter(function (r) { return r.verified; }).length;
     var withSrs = rows.filter(function (r) { return r.st && r.st.srs; });
     var meanR = withSrs.length ? withSrs.reduce(function (a, r) { return a + FSRS.rNow(r.st.srs, now); }, 0) / withSrs.length : null;
-    var due = withSrs.filter(function (r) { return FSRS.rNow(r.st.srs, now) <= ret; }).length;
+    var due = withSrs.filter(function (r) { return r.verified && FSRS.rNow(r.st.srs, now) <= ret; }).length;
     var banked = withSrs.reduce(function (a, r) { return a + r.st.srs.S; }, 0);
     var got = 0, miss = 0;
     rows.forEach(function (r) { if (r.st) { got += r.st.got; miss += r.st.miss; } });
 
-    var html = '<div class="board-head"><div><div class="bh-title">Stats</div>'
+    var html = '<div class="board-head"><div><div class="bh-title">Stats' + (selSubj ? ' · ' + U.esc(selSubj.name) : '') + '</div>'
       + '<div class="bh-sub">Honest numbers. “Recall right now” can go down — that’s the point.</div></div></div>';
+
+    // per-subject filter
+    html += '<div class="navcard"><div class="topic-pills">'
+      + '<button class="tp-pill' + (!selId ? ' on' : '') + '" data-a="stats-subj" data-s="">All subjects</button>';
+    D.subjects.forEach(function (s2) {
+      html += '<button class="tp-pill' + (selId === s2.id ? ' on' : '') + '" data-a="stats-subj" data-s="' + s2.id + '">' + U.esc(s2.name) + '</button>';
+    });
+    html += '</div></div>';
 
     html += '<div class="statrow">'
       + statCard(total ? U.pct(verified, total) + '%' : '—', 'Anchored', 'var(--green)', verified + ' of ' + total + ' cards, 3+ recalls each')
       + statCard(meanR === null ? '—' : Math.round(meanR * 100) + '%', 'Recall right now', meanR === null ? 'var(--text3)' : U.holdColor(meanR), 'estimated live retrievability')
-      + statCard(due, 'Ready to strengthen', due ? 'var(--amber)' : 'var(--text3)', 'at or below your ' + Math.round(ret * 100) + '% target')
+      + statCard(due, 'Ready to strengthen', due ? 'var(--amber)' : 'var(--text3)', 'anchored cards at/below your ' + Math.round(ret * 100) + '% target')
       + statCard(Math.round(banked), 'Memory-days banked', 'var(--accent)', 'total stability across cards')
       + statCard(got + miss ? U.pct(got, got + miss) + '%' : '—', 'Recall accuracy', 'var(--accent)', '✓ ' + got + ' · ✗ ' + miss + ' all-time')
       + '</div>';
@@ -770,7 +964,7 @@
     // forecast
     var fc = [];
     for (var d = 0; d < 14; d++) fc.push(0);
-    withSrs.forEach(function (r) {
+    withSrs.filter(function (r) { return r.verified; }).forEach(function (r) {
       var ctx = Store.resolveFacet(r.key);
       var exam = ctx && ctx.subject ? ctx.subject.examDate : null;
       var at = FSRS.dueAt(r.st.srs, ret, exam);
@@ -811,16 +1005,28 @@
     html += '<div class="cal-note">' + (gP === null ? 'Study a while and Anchor will show how accurate your self-judgement is — most students start overconfident.'
       : gP >= 85 ? 'Your green tags are trustworthy — well-calibrated.' : 'Your “Know it” tags succeed ' + gP + '% of the time — tag green a little more sparingly and test sooner.') + '</div></div>';
 
-    // activity heatmap (12 weeks)
-    html += '<div class="sp-card wide"><div class="sp-title">Activity — last 12 weeks</div><div style="overflow-x:auto"><div class="hm-grid">';
+    // activity heatmap (12 weeks) — per-subject views rebuild it from card history
+    html += '<div class="sp-card wide"><div class="sp-title">Activity — last 12 weeks' + (selSubj ? ' · this subject' : '') + '</div><div style="overflow-x:auto"><div class="hm-grid">';
+    var actMap = null;
+    if (selId) {
+      actMap = {};
+      rows.forEach(function (r) {
+        if (!r.st) return;
+        r.st.hist.forEach(function (h) {
+          var dk = Store.todayISO(new Date(h.t));
+          actMap[dk] = (actMap[dk] || 0) + 1;
+        });
+      });
+    }
     var start = new Date(); start.setDate(start.getDate() - 83);
     var maxAct = 1;
     var actArr = [];
     for (var i2 = 0; i2 < 84; i2++) {
       var dd = new Date(start.getTime() + i2 * 864e5);
-      var a = D.act[Store.todayISO(dd)];
-      actArr.push(a ? a.n : 0);
-      if (a && a.n > maxAct) maxAct = a.n;
+      var iso2 = Store.todayISO(dd);
+      var n2 = actMap ? (actMap[iso2] || 0) : (D.act[iso2] ? D.act[iso2].n : 0);
+      actArr.push(n2);
+      if (n2 > maxAct) maxAct = n2;
     }
     actArr.forEach(function (n) {
       var lv = n === 0 ? 0 : Math.min(4, Math.ceil(n / maxAct * 4));
@@ -884,6 +1090,20 @@
       '7. Cover ALL of my notes. Do not invent content that is not in them.',
       '8. Output valid JSON: escape quotes and newlines properly. Do not include comments or ids.',
       '',
+      '## How to write cards that actually stick (memory science — follow strictly)',
+      '',
+      'These rules come from retrieval-practice research. Apply every one of them:',
+      '',
+      '- **One fact per card.** If a back would hold more than ~3 separable facts, split it into several cards.',
+      '- **Fronts are specific cues, not topic labels.** Write "What does the current ratio measure, and what is its formula?" — never just "Current ratio". A good front forces exactly one answer out of memory.',
+      '- **No yes/no questions.** Always ask for the thing itself.',
+      '- **Rephrase, never copy.** Turn statements from my notes into questions or cues; the back is the shortest complete answer.',
+      '- **Keep backs under ~40 words** on simple cards. Use " · " separators, max 4 points per card.',
+      '- **Split long lists.** For a list of 5+ items: one overview card ("Name the six operations influences") plus one card per item carrying its detail.',
+      '- **Fronts must be mutually distinguishable.** If two cards could swap answers, rewrite them with discriminating context.',
+      '- **Keep concrete numbers, examples and case names** from my notes on the backs — specifics are retrieval hooks.',
+      '- **In dual mode:** "def" is the precise exam-language definition; "key" is the examinable detail (advantages/disadvantages, formulas, statistics, examples, cases).',
+      '',
       'After this message I will paste my notes. Convert them completely.'
     ].join('\n');
   }
@@ -933,6 +1153,7 @@
     html += '<div class="set-card"><div class="set-title">The science, in one breath</div>'
       + '<div class="set-desc">Anchor is built on the two study techniques rated “high utility” across all of educational psychology — practice testing and spaced practice — scheduled by FSRS, the open algorithm trained on 500M+ real reviews.</div>'
       + '<div class="sci-quote">Retrieval beats re-reading (g≈0.5–0.6, strongest for secondary students). Spacing beats cramming. Producing beats recognising. Self-chosen cues beat given ones. And green earned by three real recalls beats green you gave yourself.</div>'
+      + '<div class="m-hint" style="margin-top:10px">🖊 Pro move: keep a mini-whiteboard next to you and produce every answer on it before revealing — full free recall, zero typing friction, and wiping it clean feels great.</div>'
       + '<div class="m-hint">Full write-up with citations lives in <b>docs/RESEARCH.md</b> in the project.</div></div>';
 
     html += '<div class="set-card"><div class="set-title" style="color:var(--red)">Danger zone</div>'
