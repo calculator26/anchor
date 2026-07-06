@@ -1,6 +1,7 @@
 /* ============================================================================
    Anchor · ui-main.js — router, harbour, subject board (Mode A),
    session player, editors, boot. Loads last.
+   Content model the user sees: a subject has TABS, tabs hold CARDS.
    ========================================================================== */
 (function () {
   'use strict';
@@ -74,22 +75,25 @@
       return true;
     },
 
-    // Celebration checks after a grade lands on an item facet.
+    // Celebration checks after a grade lands.
     checkCompletions: function (key) {
       var ctx = Store.resolveFacet(key);
       if (!ctx) return;
       if (ctx.kind === 'item') {
-        var secDone = sectionFacetKeys(ctx.section).every(Store.isVerified);
-        if (secDone && App.milestone('done:sec:' + ctx.section.id)) {
-          FX.banner('⚓', 'Section anchored', ctx.section.name);
+        var grp = ctx.card.group || null;
+        if (grp) {
+          var grpDone = groupFacetKeys(ctx.subject, ctx.tab, grp).every(Store.isVerified);
+          if (grpDone && App.milestone('done:grp:' + ctx.tab.id + ':' + grp)) {
+            FX.banner('⚓', 'Section anchored', grp);
+          }
         }
-        var topicDone = ctx.topic.sections.every(function (sec) { return sectionFacetKeys(sec).every(Store.isVerified); });
-        if (topicDone && App.milestone('done:topic:' + ctx.topic.id)) {
+        var tabDone = tabFacetKeys(ctx.subject, ctx.tab).every(Store.isVerified);
+        if (tabDone && App.milestone('done:tab:' + ctx.tab.id)) {
           FX.confetti();
-          FX.banner('🏆', ctx.topic.name + ' — fully anchored', 'Every facet verified by recall');
+          FX.banner('🏆', ctx.tab.name + ' — fully anchored', 'Every card verified by recall');
         }
-        var subjDone = ctx.subject.topics.every(function (t) {
-          return t.sections.every(function (sec) { return sectionFacetKeys(sec).every(Store.isVerified); });
+        var subjDone = ctx.subject.tabs.every(function (t) {
+          return tabFacetKeys(ctx.subject, t).every(Store.isVerified);
         });
         if (subjDone && App.milestone('done:subj:' + ctx.subject.id)) {
           FX.confetti(); setTimeout(FX.confetti, 400);
@@ -120,11 +124,20 @@
   };
 
   /* ─── Facet helpers ──────────────────────────────────────────────────── */
-  function sectionFacetKeys(sec) {
+  function cardFacetKeys(subj, card) {
+    return Store.cardModes(subj).filter(function (m) { return Store.facetText(card, m); })
+      .map(function (m) { return 'f:' + card.id + ':' + m; });
+  }
+  function tabFacetKeys(subj, tab) {
     var out = [];
-    sec.items.forEach(function (it) {
-      if (it.def) out.push('f:' + it.id + ':def');
-      if (it.key) out.push('f:' + it.id + ':key');
+    tab.cards.forEach(function (c) { out.push.apply(out, cardFacetKeys(subj, c)); });
+    return out;
+  }
+  function groupFacetKeys(subj, tab, grp) {
+    var out = [];
+    tab.cards.forEach(function (c) {
+      if ((c.group || null) !== grp) return;
+      out.push.apply(out, cardFacetKeys(subj, c));
     });
     return out;
   }
@@ -147,7 +160,7 @@
 
     var html = '<div class="h-title">Harbour</div>'
       + '<div class="h-sub">' + new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
-      + ' · ' + verified + ' of ' + totalFacets + ' facets anchored</div>';
+      + ' · ' + verified + ' of ' + totalFacets + ' cards anchored</div>';
 
     if (due.length) {
       html += '<div class="due-callout"><div><div class="dc-txt">⚓ ' + due.length + ' ' + (due.length === 1 ? 'memory is' : 'memories are') + ' ready to strengthen</div>'
@@ -174,7 +187,7 @@
         + (subj.tagline ? '<span class="sc-tag" style="display:block">' + U.esc(subj.tagline) + '</span>' : '')
         + '<span class="sc-meta">'
         + (dueN ? '<span class="pill due">' + dueN + ' due</span>' : '<span class="pill">all held</span>')
-        + '<span class="pill">' + fs.length + ' facets</span>'
+        + '<span class="pill">' + fs.length + ' cards</span>'
         + (exam !== null ? '<span class="pill exam">' + (exam > 0 ? exam + 'd to exam' : 'exam day!') + '</span>' : '')
         + '</span></span></button>';
     });
@@ -209,10 +222,11 @@
       + '<div class="w-actions">'
       + '<button class="btn primary big" data-a="seed-load">Load Business Studies (HSC)</button>'
       + '<button class="btn big" data-a="subject-new">Start fresh</button></div>'
+      + '<div style="margin:-26px 0 34px"><button class="linklike" data-a="import">…or import a subject file from a mate</button></div>'
       + '<div class="w-points">'
       + '<div class="w-point"><b>🧠 Retrieval, not re-reading</b><span>Reveal-and-grade turns every glance into practice testing — the #1 rated technique (g≈0.6 for high-schoolers).</span></div>'
       + '<div class="w-point"><b>📉 A real forgetting curve</b><span>FSRS-6 — the algorithm behind modern Anki — runs locally and knows when each fact will fade.</span></div>'
-      + '<div class="w-point"><b>🟢 Green you can trust</b><span>Cards only count as anchored when you’ve actually recalled them — and they fade if you don’t come back.</span></div>'
+      + '<div class="w-point"><b>🟢 Green you can trust</b><span>A card is only anchored after three successful recalls — and it fades if you don’t come back.</span></div>'
       + '<div class="w-point"><b>⛓️ Essays as chains</b><span>One keyword per sentence. Master the order, then the links, then recite the lot.</span></div>'
       + '</div></div>';
   }
@@ -225,7 +239,7 @@
   ACTIONS['seed-load'] = function () {
     var subj = Store.loadSeed();
     if (subj) {
-      FX.toast('Business Studies loaded — 255 items ready ⚓', 'green');
+      FX.toast('Business Studies loaded — 12 tabs, 255 cards ⚓', 'green');
       App.go({ v: 'subject', id: subj.id });
     }
   };
@@ -240,74 +254,72 @@
   };
 
   /* ══════════════════════════════════════════════════════════════════════
-     SUBJECT BOARD (Mode A)
+     SUBJECT BOARD (Mode A) — tabs across the top, cards below.
      ════════════════════════════════════════════════════════════════════ */
   function viewSubject() {
     var subj = Store.subjectById(App.route.id);
     if (!subj) return '<div class="empty">Subject not found.</div>';
-    if (!subj.topics.length) {
-      return boardHead(subj) + '<div class="empty"><span class="big">🗺️</span>No topics yet.<br>Add your first topic — then sections, then the facts themselves.<br><br><button class="btn primary" data-a="board-add" data-id="' + subj.id + '">＋ Add content</button></div>';
+    if (!subj.tabs.length) {
+      return boardHead(subj) + '<div class="empty"><span class="big">🗺️</span>Empty board.<br>Make a tab for each area of the syllabus (e.g. “Finance — Role”), then fill it with cards.<br><br><button class="btn primary" data-a="board-add" data-id="' + subj.id + '">＋ Add your first tab</button></div>';
     }
 
-    var topic = subj.topics.filter(function (t) { return t.id === App.route.t; })[0] || subj.topics[0];
-    var units = [];
-    topic.sections.forEach(function (sec) { if (sec.unit && units.indexOf(sec.unit) < 0) units.push(sec.unit); });
-    var unit = units.indexOf(App.route.u) >= 0 ? App.route.u : units[0] || null;
-    var facet = App.route.f === 'key' ? 'key' : 'def';
-    var sections = topic.sections.filter(function (sec) { return !unit || sec.unit === unit; });
+    var tab = subj.tabs.filter(function (t) { return t.id === App.route.tab; })[0] || subj.tabs[0];
+    var facet = subj.dual ? (App.route.f === 'key' ? 'key' : 'def') : 'card';
 
     var html = boardHead(subj);
     html += subjectStats(subj);
 
-    // nav card
+    // nav card: one row of tabs + review queue; second row only for dual style
     html += '<div class="navcard"><div class="topic-pills">';
-    subj.topics.forEach(function (t) {
-      var fs = Store.subjectFacets(subj).filter(function (f) { return f.topic === t; });
-      var v = fs.filter(function (f) { return Store.isVerified(f.key); }).length;
-      html += '<button class="tp-pill' + (t === topic ? ' on' : '') + '" data-a="board-topic" data-id="' + subj.id + '" data-t="' + t.id + '">'
-        + U.esc(t.name) + '<span class="fillbar" style="width:' + U.pct(v, fs.length) + '%"></span></button>';
+    subj.tabs.forEach(function (t) {
+      var keys = tabFacetKeys(subj, t);
+      var v = keys.filter(Store.isVerified).length;
+      html += '<button class="tp-pill' + (t === tab ? ' on' : '') + '" data-a="board-tab" data-id="' + subj.id + '" data-t="' + t.id + '">'
+        + U.esc(t.name) + '<span class="fillbar" style="width:' + U.pct(v, keys.length) + '%"></span></button>';
     });
     var dueN = Store.dueFacets(subj.id).length;
     html += '<button class="review-btn' + (dueN ? ' has-due' : '') + '" data-a="review-subject" data-id="' + subj.id + '">'
-      + '🔔 Review queue' + (dueN ? ' <span class="badge">' + dueN + '</span>' : '') + '</button>';
+      + '🔔 Review' + (dueN ? ' <span class="badge">' + dueN + '</span>' : '') + '</button>';
     html += '</div>';
-    html += '<div class="nav2"><div class="unit-tabs">';
-    if (units.length) {
-      units.forEach(function (u) {
-        html += '<button class="ut-tab' + (u === unit ? ' on' : '') + '" data-a="board-unit" data-id="' + subj.id + '" data-t="' + topic.id + '" data-u="' + U.esc(u) + '">' + U.esc(u) + '</button>';
-      });
+    if (subj.dual) {
+      html += '<div class="nav2"><div class="unit-tabs"></div><div class="facet-toggle">'
+        + '<button class="ft-btn' + (facet === 'def' ? ' on' : '') + '" data-a="board-facet" data-f="def">Definitions</button>'
+        + '<button class="ft-btn' + (facet === 'key' ? ' on' : '') + '" data-a="board-facet" data-f="key">Key facts</button>'
+        + '</div></div>';
     }
-    html += '</div><div class="facet-toggle">'
-      + '<button class="ft-btn' + (facet === 'def' ? ' on' : '') + '" data-a="board-facet" data-f="def">Definitions</button>'
-      + '<button class="ft-btn' + (facet === 'key' ? ' on' : '') + '" data-a="board-facet" data-f="key">Key facts</button>'
-      + '</div></div></div>';
+    html += '</div>';
 
-    // sections + items
-    var shown = 0, rated = 0, verifiedN = 0, num = 1;
-    sections.forEach(function (sec) {
-      var items = sec.items.filter(function (it) { return it[facet]; });
-      if (!items.length) return;
-      var keys = sectionFacetKeys(sec);
-      var secDone = keys.length && keys.every(Store.isVerified);
-      html += '<div class="sec-head"><span>' + U.esc(sec.name) + '</span>'
-        + '<span class="shp">' + items.map(function (it) {
-          var k = 'f:' + it.id + ':' + facet;
-          var st = Store.data().state[k];
-          var cls = !st || !st.conf ? '' : st.conf === 'g' ? (Store.isVerified(k) ? 'g' : 'gu') : st.conf === 'a' ? 'a' : 'r';
-          return '<i class="' + cls + '"></i>';
-        }).join('') + '</span>'
-        + (secDone ? '<span class="sec-badge">⚓ anchored</span>' : '')
-        + '<button class="tool" title="Focus session on this section" data-a="drill-section" data-id="' + subj.id + '" data-sec="' + sec.id + '">▶</button>'
-        + '</div>';
-      items.forEach(function (it) {
-        html += itemCard(subj, topic, sec, it, facet, num++);
-        shown++;
-        var st = Store.data().state['f:' + it.id + ':' + facet];
-        if (st && st.conf) rated++;
-        if (Store.isVerified('f:' + it.id + ':' + facet)) verifiedN++;
-      });
+    // cards, clustered under their (optional) group headings
+    var shown = 0, rated = 0, verifiedN = 0, num = 1, lastGroup = '~none~';
+    tab.cards.forEach(function (card) {
+      if (!Store.facetText(card, facet)) return;
+      var grp = card.group || null;
+      if (grp !== lastGroup) {
+        lastGroup = grp;
+        if (grp) {
+          var gKeys = groupFacetKeys(subj, tab, grp);
+          var gDone = gKeys.length && gKeys.every(Store.isVerified);
+          html += '<div class="sec-head"><span>' + U.esc(grp) + '</span>'
+            + '<span class="shp">' + tab.cards.filter(function (c) { return (c.group || null) === grp && Store.facetText(c, facet); }).map(function (c) {
+              var k = 'f:' + c.id + ':' + facet;
+              var st = Store.data().state[k];
+              var cls = !st || !st.conf ? '' : st.conf === 'g' ? (Store.isVerified(k) ? 'g' : 'gu') : st.conf === 'a' ? 'a' : 'r';
+              return '<i class="' + cls + '"></i>';
+            }).join('') + '</span>'
+            + (gDone ? '<span class="sec-badge">⚓ anchored</span>' : '')
+            + '<button class="tool" title="Focus session on this group" data-a="drill-group" data-id="' + subj.id + '" data-t="' + tab.id + '" data-g="' + U.esc(grp) + '">▶</button>'
+            + '</div>';
+        } else {
+          html += '<div class="sec-head"><span>&nbsp;</span></div>';
+        }
+      }
+      html += itemCard(subj, tab, card, facet, num++);
+      shown++;
+      var st = Store.data().state['f:' + card.id + ':' + facet];
+      if (st && st.conf) rated++;
+      if (Store.isVerified('f:' + card.id + ':' + facet)) verifiedN++;
     });
-    if (!shown) html += '<div class="empty">No ' + (facet === 'def' ? 'definitions' : 'key facts') + ' here yet.</div>';
+    if (!shown) html += '<div class="empty">No cards in this tab yet.<br><br><button class="btn primary" data-a="board-add" data-id="' + subj.id + '">＋ Add cards</button></div>';
 
     html += '<div class="board-foot"><span class="prog-lbl">' + rated + ' / ' + shown + ' rated · <b style="color:var(--green)">' + verifiedN + ' anchored</b></span>'
       + '<div class="prog-wrap"><div class="pbar"><div class="pbar-fill green" style="width:' + U.pct(verifiedN, shown) + '%"></div></div>'
@@ -323,62 +335,66 @@
       + (exam !== null ? (exam > 0 ? '<b style="color:var(--accent)">' + exam + ' days to the exam</b>' : '<b style="color:var(--amber)">exam day — go get it</b>') : '<button class="linklike" data-a="subject-edit" data-id="' + subj.id + '">set exam date</button>')
       + '</div></div>'
       + '<div class="bh-actions">'
-      + '<button class="btn" data-a="board-add" data-id="' + subj.id + '">＋ Add</button>'
+      + '<button class="btn" data-a="board-add" data-id="' + subj.id + '">＋ Add cards</button>'
+      + '<button class="btn" data-a="share-subj" data-id="' + subj.id + '">⇪ Share</button>'
       + '<button class="btn" data-a="subject-edit" data-id="' + subj.id + '">✎ Edit</button>'
       + '</div></div>';
   }
 
   function subjectStats(subj) {
     var fs = Store.subjectFacets(subj);
-    var c = { v: 0, gu: 0, a: 0, r: 0, u: 0 };
+    var c = { v: 0, a: 0, r: 0, u: 0 };
     fs.forEach(function (f) {
       var st = Store.data().state[f.key];
       if (Store.isVerified(f.key)) c.v++;
-      else if (st && st.conf === 'g') c.gu++;
-      else if (st && st.conf === 'a') c.a++;
+      else if (st && (st.conf === 'a' || st.conf === 'g')) c.a++;   // in progress (incl. green-tagged but unproven)
       else if (st && st.conf === 'r') c.r++;
       else c.u++;
     });
     var dueN = Store.dueFacets(subj.id).length;
-    function sc(n, lbl, color, sub, extra) {
-      return '<div class="stat' + (extra || '') + '"><div class="n" style="color:' + color + '">' + n + '</div>'
+    function sc(n, lbl, color, sub) {
+      return '<div class="stat"><div class="n" style="color:' + color + '">' + n + '</div>'
         + '<div class="l"><span class="dot" style="background:' + color + '"></span>' + lbl + '</div><div class="sub">' + sub + '</div></div>';
     }
     return '<div class="statrow">'
-      + sc(c.v, 'Anchored', 'var(--green)', 'verified by recall')
-      + sc(c.gu, 'Untested green', 'rgba(52,211,153,.6)', 'tagged — prove them')
-      + sc(c.a, 'Getting there', 'var(--amber)', 'nearly locked in')
+      + sc(c.v, 'Anchored', 'var(--green)', '3+ successful recalls')
+      + sc(c.a, 'Getting there', 'var(--amber)', 'keep recalling — 3 anchors it')
       + sc(c.r, 'Not yet', 'var(--red)', 'honest starting point')
-      + sc(c.u, 'Unrated', 'var(--text3)', 'not touched yet')
+      + sc(c.u, 'New', 'var(--text3)', 'not touched yet')
       + '<div class="stat click' + (dueN ? ' hot' : '') + '" data-a="review-subject" data-id="' + subj.id + '"><div class="n">' + dueN + '</div>'
       + '<div class="l">⚓ Due for review</div><div class="sub">' + (dueN ? 'tap to strengthen' : 'all holding strong') + '</div></div>'
       + '</div>';
   }
 
-  function itemCard(subj, topic, sec, it, facet, num) {
-    var key = 'f:' + it.id + ':' + facet;
+  function itemCard(subj, tab, card, facet, num) {
+    var key = 'f:' + card.id + ':' + facet;
     var st = Store.data().state[key];
     var conf = st ? st.conf : null;
+    var got = st ? st.got : 0;
     var hold = U.hold(key);
     var isDue = hold && hold.due;
     var revealed = !!REV[key];
     var verified = Store.isVerified(key);
+    var CRIT = Store.GREEN_CRITERION;
 
     var html = '<div class="item ' + U.stClass(key) + '" data-card="' + key + '">';
 
     // term cell
     html += '<div class="cell cell-term"><div class="term-top"><span class="num">' + num + '</span>'
-      + (isDue ? '<span class="due-pill">⚓ Review due</span>' : '') + '</div>'
-      + '<div class="term">' + U.esc(it.term) + '</div></div>';
+      + (isDue ? '<span class="due-pill">⚓ Review due</span>' : '')
+      + (!verified && got > 0 && got < CRIT ? '<span class="pill" title="Successful recalls — ' + CRIT + ' anchors it">⚓ ' + got + '/' + CRIT + '</span>' : '')
+      + '</div>'
+      + '<div class="term">' + U.esc(card.term) + '</div></div>';
 
     // content cell
     html += '<div class="cell cell-content">'
-      + '<div class="tools"><button class="tool" title="Edit this item" data-a="item-edit" data-id="' + it.id + '" data-subj="' + subj.id + '">✎</button></div>';
+      + '<div class="tools"><button class="tool" title="Edit this card" data-a="card-edit" data-id="' + card.id + '" data-subj="' + subj.id + '">✎</button></div>';
     if (!revealed) {
-      html += '<div class="hidden-panel" data-a="reveal" data-k="' + key + '">👁 Reveal ' + (facet === 'def' ? 'definition' : 'key facts') + ' — try to say it first</div>';
+      var revLbl = facet === 'def' ? 'definition' : facet === 'key' ? 'key facts' : 'answer';
+      html += '<div class="hidden-panel" data-a="reveal" data-k="' + key + '">👁 Reveal ' + revLbl + ' — try to say it first</div>';
     } else {
-      html += '<div class="c-text">' + U.esc(it[facet]) + '</div>'
-        + (it.note ? '<div class="note-box"><span class="note-lbl">Note</span><span>' + U.esc(it.note) + '</span></div>' : '')
+      html += '<div class="c-text">' + U.esc(Store.facetText(card, facet)) + '</div>'
+        + (card.note ? '<div class="note-box"><span class="note-lbl">Note</span><span>' + U.esc(card.note) + '</span></div>' : '')
         + '<div class="after-row"><span class="grade-hint">Did you produce it?</span>'
         + '<button class="gbtn g1" data-a="grade" data-k="' + key + '" data-g="1">✗ Missed</button>'
         + '<button class="gbtn g2" data-a="grade" data-k="' + key + '" data-g="2">~ Shaky</button>'
@@ -391,7 +407,7 @@
     // meta cell
     html += '<div class="cell cell-meta"><div class="meta-lbl">Confidence' + (verified ? ' <span style="color:var(--green)">⚓</span>' : '') + '</div>'
       + '<div class="conf-btns">'
-      + '<button class="cbtn g' + (conf === 'g' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="g"><span class="cdot"></span>Know it' + (conf === 'g' && !verified ? '<span class="unv">untested</span>' : '') + '</button>'
+      + '<button class="cbtn g' + (conf === 'g' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="g"><span class="cdot"></span>Know it' + (conf === 'g' && !verified && got < CRIT ? '<span class="unv">' + got + '/' + CRIT + '</span>' : '') + '</button>'
       + '<button class="cbtn a' + (conf === 'a' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="a"><span class="cdot"></span>Getting there</button>'
       + '<button class="cbtn r' + (conf === 'r' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="r"><span class="cdot"></span>Not yet</button>'
       + '</div>';
@@ -401,8 +417,6 @@
       html += '<div class="hold-line' + (isDue ? ' due' : '') + '">'
         + (isDue ? '⚓ Due — recall now ~' + hold.pct + '%' : 'Holding ' + hold.pct + '% · ~' + (hold.S < 1 ? '&lt;1' : Math.round(hold.S)) + 'd stability')
         + '</div><div class="hold-bar"><div class="hold-fill" style="width:' + hold.pct + '%;background:' + col + '"></div></div>';
-    } else if (conf === 'g') {
-      html += '<div class="hold-line" style="color:var(--amber)">Tagged green, never tested — reveal &amp; grade it once to anchor it.</div>';
     }
 
     var hist = st ? st.hist.slice(-7) : [];
@@ -417,11 +431,8 @@
     return html;
   }
 
-  ACTIONS['board-topic'] = function (el) {
-    App.go({ v: 'subject', id: el.getAttribute('data-id'), t: el.getAttribute('data-t') });
-  };
-  ACTIONS['board-unit'] = function (el) {
-    App.go({ v: 'subject', id: el.getAttribute('data-id'), t: el.getAttribute('data-t'), u: el.getAttribute('data-u'), f: App.route.f });
+  ACTIONS['board-tab'] = function (el) {
+    App.go({ v: 'subject', id: el.getAttribute('data-id'), tab: el.getAttribute('data-t'), f: App.route.f });
   };
   ACTIONS['board-facet'] = function (el) {
     App.route.f = el.getAttribute('data-f');
@@ -433,11 +444,9 @@
 
   ACTIONS['conf'] = function (el) {
     var k = el.getAttribute('data-k'), c = el.getAttribute('data-c');
-    var stBefore = Store.data().state[k];
-    var wasUnstudied = !stBefore || !stBefore.srs;
     var res = Store.setConf(k, c);
-    if (res === 'g' && wasUnstudied) {
-      FX.toast('Tagged green — reveal &amp; grade it once to make it count ⚓', '', 3200);
+    if (res === 'g' && !Store.isVerified(k)) {
+      FX.toast('Tagged green — ' + Store.recallsToGo(k) + ' successful recall' + (Store.recallsToGo(k) > 1 ? 's' : '') + ' to anchor it ⚓', '', 3000);
     }
     App.render();
   };
@@ -447,10 +456,12 @@
     var res = Store.applyGrade(k, g);
     var card = document.querySelector('[data-card="' + k + '"]');
     if (res.wentGreen) FX.green(card);
-    else if (g >= 3) FX.burstOn(el, 7);
+    else if (g >= 3) {
+      FX.burstOn(el, 7);
+      if (res.toGo === 1) FX.toast('One more successful recall to anchor it ⚓', '', 2200);
+    }
     REV[k] = false;
     App.afterGradeCommon(res);
-    // let the sweep play on the old card before re-render
     setTimeout(function () { App.render(); App.checkCompletions(k); }, res.wentGreen ? 420 : 60);
   };
 
@@ -465,19 +476,16 @@
     App.startSession(due, { v: 'subject', id: id }, subj.name + ' · review');
   };
 
-  ACTIONS['drill-section'] = function (el) {
+  ACTIONS['drill-group'] = function (el) {
     var subj = Store.subjectById(el.getAttribute('data-id'));
-    var secId = el.getAttribute('data-sec');
-    var sec;
-    subj.topics.forEach(function (t) { t.sections.forEach(function (s2) { if (s2.id === secId) sec = s2; }); });
-    if (!sec) return;
-    var keys = sectionFacetKeys(sec);
-    // weakest first: unstudied, then lowest R
+    var tab = subj.tabs.filter(function (t) { return t.id === el.getAttribute('data-t'); })[0];
+    if (!tab) return;
+    var keys = groupFacetKeys(subj, tab, el.getAttribute('data-g'));
     keys.sort(function (a, b) {
       var ha = U.hold(a), hb = U.hold(b);
       return (ha ? ha.r : -1) - (hb ? hb.r : -1);
     });
-    App.startSession(keys, { v: 'subject', id: subj.id }, sec.name);
+    App.startSession(keys, { v: 'subject', id: subj.id, tab: tab.id }, el.getAttribute('data-g'));
   };
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -489,11 +497,11 @@
     if (ctx.kind === 'item') {
       return {
         ctx: ctx,
-        crumbs: ctx.subject.name + ' · ' + ctx.topic.name + ' · ' + ctx.section.name,
+        crumbs: ctx.subject.name + ' · ' + ctx.tab.name + (ctx.card.group ? ' · ' + ctx.card.group : ''),
         tag: U.modeLabel(ctx.mode),
-        front: ctx.item.term,
-        back: ctx.item[ctx.mode],
-        note: ctx.item.note
+        front: ctx.card.term,
+        back: Store.facetText(ctx.card, ctx.mode),
+        note: ctx.card.note
       };
     }
     if (ctx.kind === 'link') {
@@ -630,21 +638,27 @@
   };
 
   /* ══════════════════════════════════════════════════════════════════════
-     EDITORS — subjects, topics, sections, items, bulk paste
+     EDITORS — subjects, tabs, cards, bulk paste
      ════════════════════════════════════════════════════════════════════ */
   ACTIONS['subject-new'] = function () {
     Modal.open('<div class="m-title">New subject</div>'
-      + '<div class="m-sub">A subject is the whole course — topics and sections come next.</div>'
+      + '<div class="m-sub">A subject holds tabs (one per syllabus area), and tabs hold cards. That’s the whole structure.</div>'
       + '<div class="m-row"><label class="m-lbl">Name</label><input class="m-input" id="mName" placeholder="e.g. Legal Studies"></div>'
       + '<div class="m-row"><label class="m-lbl">Tagline (optional)</label><input class="m-input" id="mTag" placeholder="e.g. HSC · Crime · Human Rights"></div>'
+      + '<div class="m-row"><label class="m-lbl">Card style</label><select class="m-select" id="mDual">'
+      + '<option value="0">Simple flashcards — front / back (recommended)</option>'
+      + '<option value="1">Dual — definition + key facts per term (Business-Studies style)</option>'
+      + '</select></div>'
       + '<div class="m-row"><label class="m-lbl">Exam date (optional — powers the countdown &amp; schedule compression)</label><input class="m-input" type="date" id="mExam"></div>'
-      + '<div class="m-actions"><button class="btn" data-a="modal-close">Cancel</button>'
+      + '<div class="m-actions"><button class="btn" data-a="import" style="margin-right:auto">⬆ Import a file instead</button>'
+      + '<button class="btn" data-a="modal-close">Cancel</button>'
       + '<button class="btn primary" data-a="subject-new-ok">Create subject</button></div>');
   };
   ACTIONS['subject-new-ok'] = function () {
     var name = document.getElementById('mName').value.trim();
     if (!name) return;
-    var subj = Store.addSubject(name, document.getElementById('mTag').value.trim(), document.getElementById('mExam').value || null);
+    var subj = Store.addSubject(name, document.getElementById('mTag').value.trim(),
+      document.getElementById('mExam').value || null, document.getElementById('mDual').value === '1');
     Modal.close();
     FX.toast('Subject created ⚓', 'green');
     App.go({ v: 'subject', id: subj.id });
@@ -656,6 +670,10 @@
       + '<div class="m-row"><label class="m-lbl">Name</label><input class="m-input" id="mName" value="' + U.esc(subj.name) + '"></div>'
       + '<div class="m-row"><label class="m-lbl">Tagline</label><input class="m-input" id="mTag" value="' + U.esc(subj.tagline || '') + '"></div>'
       + '<div class="m-row"><label class="m-lbl">Exam date</label><input class="m-input" type="date" id="mExam" value="' + (subj.examDate || '') + '"></div>'
+      + '<div class="m-row"><label class="m-lbl">Card style</label><select class="m-select" id="mDual">'
+      + '<option value="0"' + (subj.dual ? '' : ' selected') + '>Simple flashcards — front / back</option>'
+      + '<option value="1"' + (subj.dual ? ' selected' : '') + '>Dual — definition + key facts</option>'
+      + '</select><div class="m-hint">Switching style keeps your cards; scheduling continues per side that still exists.</div></div>'
       + '<div class="m-actions"><button class="btn warn" data-a="del-subj" data-id="' + subj.id + '" style="margin-right:auto">Delete</button>'
       + '<button class="btn" data-a="modal-close">Cancel</button>'
       + '<button class="btn primary" data-a="subject-edit-ok" data-id="' + subj.id + '">Save</button></div>');
@@ -666,135 +684,142 @@
     if (name) subj.name = name;
     subj.tagline = document.getElementById('mTag').value.trim();
     subj.examDate = document.getElementById('mExam').value || null;
+    subj.dual = document.getElementById('mDual').value === '1';
     Store.save();
     Modal.close();
     App.render();
   };
 
+  // One simple Add flow: pick a tab (or make one), then add cards.
   ACTIONS['board-add'] = function (el) {
     var subj = Store.subjectById(el.getAttribute('data-id') || App.route.id);
-    var topicOpts = subj.topics.map(function (t) { return '<option value="' + t.id + '">' + U.esc(t.name) + '</option>'; }).join('');
-    var secOpts = '';
-    subj.topics.forEach(function (t) {
-      t.sections.forEach(function (sec) {
-        secOpts += '<option value="' + sec.id + '">' + U.esc(t.name) + ' → ' + (sec.unit ? sec.unit + ' → ' : '') + U.esc(sec.name) + '</option>';
-      });
-    });
-    Modal.open('<div class="m-title">Add to ' + U.esc(subj.name) + '</div>'
-      + '<div class="m-sub">Writing your own material is the first study pass — that’s the generation effect working for you.</div>'
-      + '<div class="m-row"><label class="m-lbl">What are you adding?</label>'
-      + '<select class="m-select" id="mKind">'
-      + (secOpts ? '<option value="item">A single item (term + definition / key facts)</option>' : '')
-      + (secOpts ? '<option value="bulk">Bulk paste items (Term | definition | key facts)</option>' : '')
-      + (topicOpts ? '<option value="section">A section</option>' : '')
-      + '<option value="topic">A topic</option>'
+    var tabOpts = subj.tabs.map(function (t) {
+      var sel = (App.route.tab === t.id || (!App.route.tab && subj.tabs[0] === t)) ? ' selected' : '';
+      return '<option value="' + t.id + '"' + sel + '>' + U.esc(t.name) + '</option>';
+    }).join('') + '<option value="__new">＋ Create a new tab…</option>';
+    var single = subj.dual
+      ? '<div class="m-row"><label class="m-lbl">Term</label><input class="m-input" id="mTerm" placeholder="e.g. Outsourcing"></div>'
+        + '<div class="m-row"><label class="m-lbl">Definition</label><textarea class="m-ta" id="mDef" style="min-height:64px"></textarea></div>'
+        + '<div class="m-row"><label class="m-lbl">Key facts</label><textarea class="m-ta" id="mKey" style="min-height:64px"></textarea></div>'
+      : '<div class="m-row"><label class="m-lbl">Front (the cue)</label><input class="m-input" id="mTerm" placeholder="e.g. What are the three levels of government?"></div>'
+        + '<div class="m-row"><label class="m-lbl">Back (what you must recall)</label><textarea class="m-ta" id="mBack" style="min-height:80px"></textarea></div>';
+    var bulkHint = subj.dual ? 'Term | definition | key facts' : 'Front | back';
+
+    Modal.open('<div class="m-title">Add cards</div>'
+      + '<div class="m-sub">Writing your own cards is the first study pass — the generation effect working for you.</div>'
+      + '<div class="m-row"><label class="m-lbl">Into tab</label><select class="m-select" id="mTab">' + tabOpts + '</select>'
+      + '<div class="m-row" id="mNewTabRow" style="display:none;margin-top:9px"><input class="m-input" id="mNewTab" placeholder="New tab name — e.g. Finance — Role"></div></div>'
+      + '<div class="m-row"><label class="m-lbl">Group heading (optional — a small heading above these cards)</label><input class="m-input" id="mGroup" placeholder="e.g. Internal sources of finance"></div>'
+      + '<div class="m-row"><label class="m-lbl">How many?</label><select class="m-select" id="mKind">'
+      + '<option value="one">One card</option>'
+      + '<option value="bulk">Bulk paste — one card per line</option>'
       + '</select></div>'
-      + '<div id="mKindBody"></div>'
+      + '<div id="mOne">' + single + '</div>'
+      + '<div id="mBulk" style="display:none"><div class="m-row"><label class="m-lbl">One per line: <b>' + bulkHint + '</b></label>'
+      + '<textarea class="m-ta" id="mLines" placeholder="' + bulkHint + '&#10;' + bulkHint + '"></textarea></div></div>'
       + '<div class="m-actions"><button class="btn" data-a="modal-close">Cancel</button>'
       + '<button class="btn primary" data-a="board-add-ok" data-id="' + subj.id + '">Add</button></div>',
       function (root) {
-        var kind = root.querySelector('#mKind');
-        var body = root.querySelector('#mKindBody');
-        function paint() {
-          var k = kind.value;
-          if (k === 'topic') body.innerHTML = '<div class="m-row"><label class="m-lbl">Topic name</label><input class="m-input" id="mA" placeholder="e.g. Human Resources"></div>';
-          else if (k === 'section') body.innerHTML = '<div class="m-row"><label class="m-lbl">Inside topic</label><select class="m-select" id="mT">' + topicOpts + '</select></div>'
-            + '<div class="m-row"><label class="m-lbl">Section name</label><input class="m-input" id="mA" placeholder="e.g. Training &amp; Development"></div>'
-            + '<div class="m-row"><label class="m-lbl">Unit / tab (optional — e.g. Role, Influences, Processes, Strategies)</label><input class="m-input" id="mB" placeholder="leave blank for none"></div>';
-          else if (k === 'item') body.innerHTML = '<div class="m-row"><label class="m-lbl">Section</label><select class="m-select" id="mSec">' + secOpts + '</select></div>'
-            + '<div class="m-row"><label class="m-lbl">Term</label><input class="m-input" id="mA" placeholder="e.g. Outsourcing"></div>'
-            + '<div class="m-row"><label class="m-lbl">Definition (optional)</label><textarea class="m-ta" id="mB" style="min-height:70px"></textarea></div>'
-            + '<div class="m-row"><label class="m-lbl">Key facts (optional)</label><textarea class="m-ta" id="mC" style="min-height:70px"></textarea></div>';
-          else body.innerHTML = '<div class="m-row"><label class="m-lbl">Section</label><select class="m-select" id="mSec">' + secOpts + '</select></div>'
-            + '<div class="m-row"><label class="m-lbl">One item per line: <b>Term | definition | key facts</b></label>'
-            + '<textarea class="m-ta" id="mA" placeholder="Liquidity | The ability to pay short-term debts as they fall due | Current ratio = CA ÷ CL&#10;Solvency | … | …"></textarea></div>'
-            + '<div class="m-hint">Definition or key facts can be left empty — “Term || facts” works too.</div>';
-        }
-        kind.onchange = paint;
-        paint();
+        root.querySelector('#mTab').onchange = function () {
+          root.querySelector('#mNewTabRow').style.display = this.value === '__new' ? 'block' : 'none';
+        };
+        root.querySelector('#mKind').onchange = function () {
+          root.querySelector('#mOne').style.display = this.value === 'one' ? 'block' : 'none';
+          root.querySelector('#mBulk').style.display = this.value === 'bulk' ? 'block' : 'none';
+        };
       });
   };
   ACTIONS['board-add-ok'] = function (el) {
     var subj = Store.subjectById(el.getAttribute('data-id'));
-    var kind = document.getElementById('mKind').value;
-    var A = document.getElementById('mA');
-    if (kind === 'topic') {
-      if (!A.value.trim()) return;
-      Store.addTopic(subj, A.value.trim());
-      FX.toast('Topic added.', 'green');
-    } else if (kind === 'section') {
-      var t = subj.topics.filter(function (x) { return x.id === document.getElementById('mT').value; })[0];
-      if (!t || !A.value.trim()) return;
-      Store.addSection(t, A.value.trim(), (document.getElementById('mB').value || '').trim() || null);
-      FX.toast('Section added.', 'green');
+    var tabSel = document.getElementById('mTab').value;
+    var tab;
+    if (tabSel === '__new') {
+      var tn = document.getElementById('mNewTab').value.trim();
+      if (!tn) { FX.toast('Give the new tab a name first.', 'amber'); return; }
+      tab = Store.addTab(subj, tn);
     } else {
-      var sec = findSection(subj, document.getElementById('mSec').value);
-      if (!sec) return;
-      if (kind === 'item') {
-        if (!A.value.trim()) return;
-        Store.addItem(sec, A.value.trim(), document.getElementById('mB').value.trim(), document.getElementById('mC').value.trim());
-        FX.toast('Item added — go earn its green.', 'green');
+      tab = subj.tabs.filter(function (t) { return t.id === tabSel; })[0];
+    }
+    if (!tab) return;
+    var group = document.getElementById('mGroup').value.trim() || null;
+    var kind = document.getElementById('mKind').value;
+    var added = 0;
+
+    if (kind === 'one') {
+      var term = document.getElementById('mTerm').value.trim();
+      if (!term) { FX.toast('The card needs a front.', 'amber'); return; }
+      var fields = { term: term, group: group };
+      if (subj.dual) {
+        fields.def = document.getElementById('mDef').value.trim();
+        fields.key = document.getElementById('mKey').value.trim();
+        if (!fields.def && !fields.key) { FX.toast('Give it a definition or key facts.', 'amber'); return; }
       } else {
-        var n = 0;
-        A.value.split('\n').forEach(function (line) {
-          var parts = line.split('|').map(function (p) { return p.trim(); });
-          if (!parts[0]) return;
-          Store.addItem(sec, parts[0], parts[1] || '', parts[2] || '');
-          n++;
-        });
-        FX.toast(n + ' items added ⚓', 'green');
+        fields.back = document.getElementById('mBack').value.trim();
+        if (!fields.back) { FX.toast('The card needs a back.', 'amber'); return; }
       }
+      Store.addCard(tab, fields);
+      added = 1;
+    } else {
+      document.getElementById('mLines').value.split('\n').forEach(function (line) {
+        var parts = line.split('|').map(function (p) { return p.trim(); });
+        if (!parts[0]) return;
+        var f = { term: parts[0], group: group };
+        if (subj.dual) { f.def = parts[1] || ''; f.key = parts[2] || ''; if (!f.def && !f.key) return; }
+        else { f.back = parts.slice(1).join(' | ').trim(); if (!f.back) return; }
+        Store.addCard(tab, f);
+        added++;
+      });
+      if (!added) { FX.toast('No valid lines found — check the format.', 'amber'); return; }
     }
     Modal.close();
-    App.render();
+    FX.toast(added + (added === 1 ? ' card' : ' cards') + ' added — go earn the green ⚓', 'green');
+    App.go({ v: 'subject', id: subj.id, tab: tab.id, f: App.route.f });
   };
-  function findSection(subj, secId) {
-    var found = null;
-    subj.topics.forEach(function (t) { t.sections.forEach(function (s2) { if (s2.id === secId) found = s2; }); });
-    return found;
-  }
 
-  ACTIONS['item-edit'] = function (el) {
+  ACTIONS['card-edit'] = function (el) {
     var subj = Store.subjectById(el.getAttribute('data-subj'));
-    var itemId = el.getAttribute('data-id');
-    var sec, item;
-    subj.topics.forEach(function (t) { t.sections.forEach(function (s2) {
-      s2.items.forEach(function (it) { if (it.id === itemId) { sec = s2; item = it; } });
-    }); });
-    if (!item) return;
-    Modal.open('<div class="m-title">Edit “' + U.esc(item.term) + '”</div>'
-      + '<div class="m-row"><label class="m-lbl">Term</label><input class="m-input" id="mTerm" value="' + U.esc(item.term) + '"></div>'
-      + '<div class="m-row"><label class="m-lbl">Definition</label><textarea class="m-ta" id="mDef">' + U.esc(item.def || '') + '</textarea></div>'
-      + '<div class="m-row"><label class="m-lbl">Key facts</label><textarea class="m-ta" id="mKey">' + U.esc(item.key || '') + '</textarea></div>'
-      + '<div class="m-row"><label class="m-lbl">Your note (shown after reveal)</label><textarea class="m-ta" id="mNote" style="min-height:60px">' + U.esc(item.note || '') + '</textarea></div>'
-      + '<div class="m-actions"><button class="btn warn" data-a="item-del" data-id="' + item.id + '" data-subj="' + subj.id + '" style="margin-right:auto">Delete item</button>'
+    var cardId = el.getAttribute('data-id');
+    var card, tab;
+    subj.tabs.forEach(function (t) { t.cards.forEach(function (c) { if (c.id === cardId) { card = c; tab = t; } }); });
+    if (!card) return;
+    var fields = subj.dual
+      ? '<div class="m-row"><label class="m-lbl">Definition</label><textarea class="m-ta" id="mDef">' + U.esc(card.def || '') + '</textarea></div>'
+        + '<div class="m-row"><label class="m-lbl">Key facts</label><textarea class="m-ta" id="mKey">' + U.esc(card.key || '') + '</textarea></div>'
+      : '<div class="m-row"><label class="m-lbl">Back</label><textarea class="m-ta" id="mBack">' + U.esc(card.back || card.def || card.key || '') + '</textarea></div>';
+    Modal.open('<div class="m-title">Edit card</div>'
+      + '<div class="m-row"><label class="m-lbl">' + (subj.dual ? 'Term' : 'Front') + '</label><input class="m-input" id="mTerm" value="' + U.esc(card.term) + '"></div>'
+      + fields
+      + '<div class="m-row"><label class="m-lbl">Group heading (optional)</label><input class="m-input" id="mGroup" value="' + U.esc(card.group || '') + '"></div>'
+      + '<div class="m-row"><label class="m-lbl">Your note (shown after reveal)</label><textarea class="m-ta" id="mNote" style="min-height:56px">' + U.esc(card.note || '') + '</textarea></div>'
+      + '<div class="m-actions"><button class="btn warn" data-a="card-del" data-id="' + card.id + '" data-subj="' + subj.id + '" style="margin-right:auto">Delete card</button>'
       + '<button class="btn" data-a="modal-close">Cancel</button>'
-      + '<button class="btn primary" data-a="item-edit-ok" data-id="' + item.id + '" data-subj="' + subj.id + '">Save</button></div>');
+      + '<button class="btn primary" data-a="card-edit-ok" data-id="' + card.id + '" data-subj="' + subj.id + '">Save</button></div>');
   };
-  ACTIONS['item-edit-ok'] = function (el) {
+  ACTIONS['card-edit-ok'] = function (el) {
     var subj = Store.subjectById(el.getAttribute('data-subj'));
-    var itemId = el.getAttribute('data-id');
-    subj.topics.forEach(function (t) { t.sections.forEach(function (s2) {
-      s2.items.forEach(function (it) {
-        if (it.id !== itemId) return;
-        it.term = document.getElementById('mTerm').value.trim() || it.term;
-        var d = document.getElementById('mDef').value.trim();
-        var k = document.getElementById('mKey').value.trim();
-        var n = document.getElementById('mNote').value.trim();
-        if (d) it.def = d; else delete it.def;
-        if (k) it.key = k; else delete it.key;
-        if (n) it.note = n; else delete it.note;
-      });
+    var cardId = el.getAttribute('data-id');
+    subj.tabs.forEach(function (t) { t.cards.forEach(function (card) {
+      if (card.id !== cardId) return;
+      card.term = document.getElementById('mTerm').value.trim() || card.term;
+      function setField(f, v) { if (v) card[f] = v; else delete card[f]; }
+      if (subj.dual) {
+        setField('def', document.getElementById('mDef').value.trim());
+        setField('key', document.getElementById('mKey').value.trim());
+      } else {
+        setField('back', document.getElementById('mBack').value.trim());
+      }
+      setField('group', document.getElementById('mGroup').value.trim());
+      setField('note', document.getElementById('mNote').value.trim());
     }); });
     Store.save();
     Modal.close();
     App.render();
   };
-  ACTIONS['item-del'] = function (el) {
+  ACTIONS['card-del'] = function (el) {
     var subj = Store.subjectById(el.getAttribute('data-subj'));
-    var itemId = el.getAttribute('data-id');
-    Modal.confirm('Delete this item?', 'Its study history goes with it.', 'Delete', true, function () {
-      subj.topics.forEach(function (t) { t.sections.forEach(function (s2) { Store.deleteItem(s2, itemId); }); });
+    var cardId = el.getAttribute('data-id');
+    Modal.confirm('Delete this card?', 'Its study history goes with it.', 'Delete', true, function () {
+      Store.deleteCard(subj, cardId);
       App.render();
     });
   };

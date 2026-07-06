@@ -27,8 +27,10 @@ It's a static app. Any of these work:
 
 ## The two modes
 
-- **Mode A · Syllabus boards** — the syllabus mapped subject → topic → section → item, each with definition + key-facts facets. Reveal → produce → self-grade. Verified green ("anchored") requires an actual successful recall, and fades as predicted retrievability decays.
-- **Mode B · Chains** — for essays and sequences: paste a paragraph, choose **your own** keyword per sentence, master the order (arrange / next-link games), then each keyword becomes a recall card, then recite the whole thing from memory.
+- **Mode A · Syllabus boards** — a subject has **tabs** (one per syllabus area, e.g. "Finance — Role"), tabs hold **cards**. Plain front/back by default; an opt-in *dual* style gives each term definition + key-facts sides. Reveal → produce → self-grade. **Three successful recalls anchor a card green**, and green fades as predicted retrievability decays.
+- **Mode B · Chains** — for essays and sequences: paste a paragraph, type **your own** keyword per sentence, master the order (arrange + recall-the-chain-from-cold games), then each keyword becomes a recall card, then recite the whole thing from memory. **Essays group several paragraph chains** with shared progress.
+
+No AI inside the app — but Settings ships a copyable prompt that makes any AI emit a perfectly-formatted subject file from your notes, which Anchor imports in one tap. Subjects also export/import as files for sharing between mates.
 
 ## Principles (short version)
 

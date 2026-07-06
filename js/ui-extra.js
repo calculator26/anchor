@@ -1,7 +1,6 @@
 /* ============================================================================
-   Anchor · ui-extra.js — utilities, FX engine, modals, Chains, Stats, Data.
-   Loads before ui-main.js. Registers handlers into the shared ACTIONS map;
-   references to App resolve at call time (after boot).
+   Anchor · ui-extra.js — utilities, FX engine, modals, Chains + Essays,
+   Stats, Data & settings. Loads before ui-main.js.
    ========================================================================== */
 (function () {
   'use strict';
@@ -31,7 +30,6 @@
       if (!st || !st.conf) return '';
       return st.conf === 'g' ? 'cg' : st.conf === 'a' ? 'ca' : 'cr';
     },
-    // Live memory-hold info for a facet: {r 0..1, pctTxt, due, S}
     hold: function (key) {
       var st = Store.data().state[key];
       if (!st || !st.srs) return null;
@@ -42,7 +40,9 @@
       var ret = Store.data().settings.retention;
       return r > (1 + ret) / 2 ? 'var(--green)' : r > ret ? 'var(--amber)' : 'var(--red)';
     },
-    modeLabel: function (mode) { return mode === 'def' ? 'Definition' : 'Key facts'; }
+    modeLabel: function (mode) {
+      return mode === 'def' ? 'Definition' : mode === 'key' ? 'Key facts' : 'Card';
+    }
   };
 
   /* ─── FX · celebration engine (all recall-triggered, all brief) ──────── */
@@ -122,7 +122,6 @@
       setTimeout(function () { b.remove(); }, 2500);
     },
 
-    // Variable-reward wrapper for a facet going verified-green (12% bonus variant)
     green: function (el) {
       if (el) {
         el.classList.remove('sweep'); void el.offsetWidth; el.classList.add('sweep');
@@ -160,7 +159,7 @@
   ACTIONS['modal-ok'] = function () { var f = Modal._ok; Modal.close(); Modal._ok = null; if (f) f(); };
 
   /* ══════════════════════════════════════════════════════════════════════
-     CHAINS · Mode B — sequential mastery
+     CHAINS · Mode B — essays group chains (one chain per paragraph)
      ════════════════════════════════════════════════════════════════════ */
   var V = window.V = {};
 
@@ -189,8 +188,8 @@
   }
   window.chainForged = chainForged;
 
-  function linksVisual(ch) {
-    var html = '<div class="ch-links">';
+  function linksVisual(ch, small) {
+    var html = '<div class="ch-links' + (small ? ' small' : '') + '">';
     chainLinkStates(ch).forEach(function (l) {
       var cls = l.verified ? (l.due ? 'due' : 'done') : (l.started ? 'part' : '');
       html += '<span class="lk ' + cls + '" title="' + U.esc(l.sent.kw) + '"></span>';
@@ -199,37 +198,93 @@
     return html;
   }
 
-  V.chains = function () {
-    var chains = Store.data().chains;
-    var html = '<div class="board-head"><div><div class="bh-title">Chains</div>'
-      + '<div class="bh-sub">Essay &amp; sequence mastery — one keyword per sentence, master the order, then forge every link.</div></div>'
-      + '<div class="bh-actions"><button class="btn primary" data-a="chain-new">+ New chain</button></div></div>';
+  function chainRow(ch) {
+    var links = chainLinkStates(ch);
+    var done = links.filter(function (l) { return l.verified; }).length;
+    var dueN = links.filter(function (l) { return l.due; }).length + (chainOrderState(ch).due ? 1 : 0);
+    return '<div class="chain-row">'
+      + '<span class="cr-title">' + U.esc(ch.title) + (chainForged(ch) ? ' <span class="forged">⚓</span>' : '') + '</span>'
+      + linksVisual(ch, true)
+      + '<span class="ch-sub">' + done + '/' + links.length + '</span>'
+      + (dueN ? '<span class="pill due">' + dueN + ' due</span>' : '')
+      + '<span class="ch-actions"><button class="btn" data-a="chain-open" data-id="' + ch.id + '">Study</button>'
+      + '<button class="tool" title="Delete chain" data-a="chain-del" data-id="' + ch.id + '">🗑</button></span>'
+      + '</div>';
+  }
 
-    if (!chains.length) {
+  V.chains = function () {
+    var D = Store.data();
+    var html = '<div class="board-head"><div><div class="bh-title">Chains</div>'
+      + '<div class="bh-sub">Essay &amp; sequence mastery — one keyword per sentence, master the order, then forge every link. Group a chain per paragraph under an essay.</div></div>'
+      + '<div class="bh-actions"><button class="btn" data-a="essay-new">＋ New essay</button>'
+      + '<button class="btn primary" data-a="chain-new">＋ New chain</button></div></div>';
+
+    if (!D.chains.length && !D.essays.length) {
       html += '<div class="empty"><span class="big">⛓️</span>No chains yet.<br>Paste an essay paragraph and Anchor will help you master it sentence-by-sentence — the keyword method, built in.<br><br><button class="btn primary" data-a="chain-new">Build your first chain</button></div>';
       return html;
     }
-    chains.forEach(function (ch) {
-      var links = chainLinkStates(ch);
-      var done = links.filter(function (l) { return l.verified; }).length;
-      var ord = chainOrderState(ch);
-      var subj = ch.subjectId ? Store.subjectById(ch.subjectId) : null;
-      var dueN = links.filter(function (l) { return l.due; }).length + (ord.due ? 1 : 0);
-      html += '<div class="chain-card">'
-        + '<div class="ch-top"><span class="ch-title">' + U.esc(ch.title) + '</span>'
+
+    // essays with their paragraph chains
+    D.essays.forEach(function (e) {
+      var chains = D.chains.filter(function (c) { return c.essayId === e.id; });
+      var subj = e.subjectId ? Store.subjectById(e.subjectId) : null;
+      var forged = chains.filter(chainForged).length;
+      html += '<div class="chain-card essay-card">'
+        + '<div class="ch-top"><span class="ch-title">📝 ' + U.esc(e.title) + '</span>'
         + (subj ? '<span class="pill">' + U.esc(subj.name) + '</span>' : '')
-        + (chainForged(ch) ? '<span class="forged">⚓ Forged</span>' : '')
-        + (dueN ? '<span class="pill due">' + dueN + ' due</span>' : '')
-        + '<span class="ch-actions"><button class="btn" data-a="chain-open" data-id="' + ch.id + '">Study</button>'
-        + '<button class="tool" title="Delete chain" data-a="chain-del" data-id="' + ch.id + '">🗑</button></span></div>'
-        + linksVisual(ch)
-        + '<div class="ch-sub">' + ch.sentences.length + ' links · ' + done + ' forged · order '
-        + (ord.verified ? 'anchored' + (ord.hold ? ' — holding ' + ord.hold.pct + '%' : '') : (ord.started ? 'in training' : 'not learned yet')) + '</div>'
-        + '</div>';
+        + (chains.length && forged === chains.length ? '<span class="forged">⚓ Essay forged</span>'
+           : '<span class="ch-sub">' + forged + '/' + chains.length + ' paragraphs forged</span>')
+        + '<span class="ch-actions">'
+        + '<button class="btn" data-a="chain-new" data-essay="' + e.id + '">＋ Paragraph</button>'
+        + '<button class="tool" title="Delete essay (chains are kept)" data-a="essay-del" data-id="' + e.id + '">🗑</button></span></div>';
+      if (!chains.length) html += '<div class="ch-sub" style="margin-top:8px">No paragraphs yet — add a chain for paragraph 1.</div>';
+      chains.forEach(function (ch) { html += chainRow(ch); });
+      html += '</div>';
     });
+
+    // standalone chains
+    var loose = D.chains.filter(function (c) { return !c.essayId; });
+    if (loose.length) {
+      if (D.essays.length) html += '<div class="sec-head">Standalone chains</div>';
+      loose.forEach(function (ch) {
+        var subj = ch.subjectId ? Store.subjectById(ch.subjectId) : null;
+        html += '<div class="chain-card"><div class="ch-top"><span class="ch-title">' + U.esc(ch.title) + '</span>'
+          + (subj ? '<span class="pill">' + U.esc(subj.name) + '</span>' : '')
+          + (chainForged(ch) ? '<span class="forged">⚓ Forged</span>' : '')
+          + '<span class="ch-actions"><button class="btn" data-a="chain-open" data-id="' + ch.id + '">Study</button>'
+          + '<button class="tool" title="Delete chain" data-a="chain-del" data-id="' + ch.id + '">🗑</button></span></div>'
+          + linksVisual(ch)
+          + '</div>';
+      });
+    }
     return html;
   };
 
+  ACTIONS['essay-new'] = function () {
+    var subs = Store.data().subjects;
+    Modal.open('<div class="m-title">New essay</div>'
+      + '<div class="m-sub">An essay is just a folder for its paragraph chains — usually one chain per paragraph.</div>'
+      + '<div class="m-row"><label class="m-lbl">Essay title</label><input class="m-input" id="mTitle" placeholder="e.g. Operations strategies essay"></div>'
+      + '<div class="m-row"><label class="m-lbl">Subject (optional)</label><select class="m-select" id="mSubj"><option value="">— none —</option>'
+      + subs.map(function (s) { return '<option value="' + s.id + '">' + U.esc(s.name) + '</option>'; }).join('') + '</select></div>'
+      + '<div class="m-actions"><button class="btn" data-a="modal-close">Cancel</button>'
+      + '<button class="btn primary" data-a="essay-new-ok">Create essay</button></div>');
+  };
+  ACTIONS['essay-new-ok'] = function () {
+    var t = document.getElementById('mTitle').value.trim();
+    if (!t) return;
+    Store.addEssay(t, document.getElementById('mSubj').value || null);
+    Modal.close();
+    FX.toast('Essay created — add a chain per paragraph 📝', 'green');
+    App.render();
+  };
+  ACTIONS['essay-del'] = function (el) {
+    var e = Store.essayById(el.getAttribute('data-id'));
+    Modal.confirm('Delete essay “' + e.title + '”?', 'Its chains are kept — they just become standalone.', 'Delete essay', true, function () {
+      Store.deleteEssay(e.id);
+      App.render();
+    });
+  };
   ACTIONS['chain-del'] = function (el) {
     var id = el.getAttribute('data-id');
     var ch = Store.chainById(id);
@@ -239,10 +294,15 @@
     });
   };
   ACTIONS['chain-open'] = function (el) { App.go({ v: 'chain', id: el.getAttribute('data-id') }); };
-  ACTIONS['chain-new'] = function () { App.go({ v: 'chainBuild' }); };
+  ACTIONS['chain-new'] = function (el) {
+    CB = { title: '', subjectId: '', essayId: (el && el.getAttribute('data-essay')) || '', raw: '', sents: null };
+    var e = CB.essayId ? Store.essayById(CB.essayId) : null;
+    if (e && e.subjectId) CB.subjectId = e.subjectId;
+    App.go({ v: 'chainBuild' });
+  };
 
-  /* --- Builder ------------------------------------------------------------ */
-  var CB = { title: '', subjectId: '', raw: '', sents: null }; // sents: [{text, kw}]
+  /* --- Builder — paste, split, type a keyword per sentence ------------------ */
+  var CB = { title: '', subjectId: '', essayId: '', raw: '', sents: null };
 
   function splitSentences(text) {
     var clean = text.replace(/\s+/g, ' ').trim();
@@ -252,22 +312,27 @@
   }
 
   V.chainBuild = function () {
-    var subs = Store.data().subjects;
+    var D = Store.data();
+    var essay = CB.essayId ? Store.essayById(CB.essayId) : null;
     var html = '<button class="bh-back" data-a="chains">← Chains</button>'
       + '<div class="board-head"><div><div class="bh-title">New chain</div>'
-      + '<div class="bh-sub">Paste a paragraph → give every sentence <b>one keyword you choose yourself</b> (choosing is encoding). Then master the sequence, then the links.</div></div></div>';
+      + '<div class="bh-sub">Paste a paragraph → type <b>one keyword you choose yourself</b> for each sentence (choosing is encoding). Then master the sequence, then the links.</div></div></div>';
 
     html += '<div class="set-card" style="margin-bottom:14px"><div class="set-row">'
       + '<div class="m-row" style="flex:2;min-width:220px;margin:0"><label class="m-lbl">Title</label>'
-      + '<input class="m-input" id="cbTitle" placeholder="e.g. Operations essay — technology paragraph" value="' + U.esc(CB.title) + '"></div>'
-      + '<div class="m-row" style="flex:1;min-width:170px;margin:0"><label class="m-lbl">Subject</label>'
-      + '<select class="m-select" id="cbSubj">' + '<option value="">— none —</option>'
-      + subs.map(function (s) { return '<option value="' + s.id + '"' + (CB.subjectId === s.id ? ' selected' : '') + '>' + U.esc(s.name) + '</option>'; }).join('')
+      + '<input class="m-input" id="cbTitle" placeholder="e.g. Paragraph 2 — technology" value="' + U.esc(CB.title) + '"></div>'
+      + '<div class="m-row" style="flex:1;min-width:150px;margin:0"><label class="m-lbl">Essay (optional)</label>'
+      + '<select class="m-select" id="cbEssay"><option value="">— standalone —</option>'
+      + D.essays.map(function (e) { return '<option value="' + e.id + '"' + (CB.essayId === e.id ? ' selected' : '') + '>' + U.esc(e.title) + '</option>'; }).join('')
+      + '</select></div>'
+      + '<div class="m-row" style="flex:1;min-width:150px;margin:0"><label class="m-lbl">Subject</label>'
+      + '<select class="m-select" id="cbSubj"><option value="">— none —</option>'
+      + D.subjects.map(function (s) { return '<option value="' + s.id + '"' + (CB.subjectId === s.id ? ' selected' : '') + '>' + U.esc(s.name) + '</option>'; }).join('')
       + '</select></div></div>';
 
     if (!CB.sents) {
       html += '<div class="m-row"><label class="m-lbl">Paste your paragraph</label>'
-        + '<textarea class="cb-ta" id="cbRaw" placeholder="Paste the paragraph or short essay you need to memorise, exactly as you want to reproduce it…">' + U.esc(CB.raw) + '</textarea></div>'
+        + '<textarea class="cb-ta" id="cbRaw" placeholder="Paste the paragraph exactly as you want to reproduce it…">' + U.esc(CB.raw) + '</textarea></div>'
         + '<div class="m-actions" style="justify-content:flex-start"><button class="btn primary" data-a="cb-split">Split into sentences →</button></div>';
       html += '</div>';
     } else {
@@ -278,36 +343,45 @@
           + (i < CB.sents.length - 1 ? ' <button class="linklike" data-a="cb-merge" data-i="' + i + '">merge ↓</button>' : '')
           + ' <button class="linklike" style="color:var(--red)" data-a="cb-del" data-i="' + i + '">remove</button></div>'
           + '<div class="cb-text">' + U.esc(sn.text) + '</div>'
-          + '<div class="cb-kwline">Keyword: ' + (sn.kw
-            ? '<span class="kchip">' + U.esc(sn.kw) + '</span> <button class="linklike" data-a="cb-kw-clear" data-i="' + i + '">change</button>'
-            : '<span style="color:var(--text3)">tap a word ↓ or</span> <button class="linklike" data-a="cb-kw-custom" data-i="' + i + '">type your own</button>') + '</div>';
-        if (!sn.kw) {
-          html += '<div style="margin-top:7px">';
-          var seen = {};
-          sn.text.split(/[^A-Za-z0-9’'-]+/).forEach(function (w) {
-            var t = w.trim();
-            if (t.length < 3 || seen[t.toLowerCase()]) return;
-            seen[t.toLowerCase()] = 1;
-            html += '<button class="wchip" data-a="cb-kw" data-i="' + i + '" data-w="' + U.esc(t) + '">' + U.esc(t) + '</button>';
-          });
-          html += '</div>';
-        }
-        html += '</div>';
+          + '<div class="cb-kwline"><span>Keyword ' + (i + 1) + ':</span>'
+          + '<input class="m-input kw-in" data-i="' + i + '" maxlength="30" placeholder="one memorable word from (or about) this sentence" value="' + U.esc(sn.kw) + '">'
+          + '</div></div>';
       });
-      var ready = CB.sents.length >= 2 && CB.sents.every(function (s) { return s.kw; });
+      var setN = CB.sents.filter(function (s) { return s.kw && s.kw.trim(); }).length;
+      var ready = CB.sents.length >= 2 && setN === CB.sents.length;
       html += '<div class="m-actions" style="justify-content:flex-start">'
         + '<button class="btn" data-a="cb-restart">← Start over</button>'
-        + '<button class="btn primary" data-a="cb-create" ' + (ready ? '' : 'disabled') + '>Create chain (' + CB.sents.length + ' links)</button></div>';
+        + '<button class="btn primary" id="cbCreate" data-a="cb-create" ' + (ready ? '' : 'disabled') + '>Create chain (<span id="cbSetN">' + setN + '</span>/' + CB.sents.length + ' keywords)</button></div>';
     }
     return html;
   };
 
   function cbSync() {
-    var t = document.getElementById('cbTitle'), s = document.getElementById('cbSubj'), r = document.getElementById('cbRaw');
+    var t = document.getElementById('cbTitle'), s = document.getElementById('cbSubj'),
+        e = document.getElementById('cbEssay'), r = document.getElementById('cbRaw');
     if (t) CB.title = t.value;
     if (s) CB.subjectId = s.value;
+    if (e) CB.essayId = e.value;
     if (r) CB.raw = r.value;
+    document.querySelectorAll('.kw-in').forEach(function (inp) {
+      var i = +inp.getAttribute('data-i');
+      if (CB.sents && CB.sents[i]) CB.sents[i].kw = inp.value.trim();
+    });
   }
+
+  // live keyword typing: keep state + button label fresh without re-rendering
+  document.addEventListener('input', function (ev) {
+    var el = ev.target;
+    if (!el.classList || !el.classList.contains('kw-in') || !CB.sents) return;
+    var i = +el.getAttribute('data-i');
+    if (CB.sents[i]) CB.sents[i].kw = el.value.trim();
+    var setN = CB.sents.filter(function (s) { return s.kw; }).length;
+    var nEl = document.getElementById('cbSetN');
+    if (nEl) nEl.textContent = setN;
+    var btn = document.getElementById('cbCreate');
+    if (btn) btn.disabled = !(CB.sents.length >= 2 && setN === CB.sents.length);
+  });
+
   ACTIONS['cb-split'] = function () {
     cbSync();
     var sents = splitSentences(CB.raw);
@@ -316,31 +390,6 @@
     App.render();
   };
   ACTIONS['cb-restart'] = function () { cbSync(); CB.sents = null; App.render(); };
-  ACTIONS['cb-kw'] = function (el) {
-    cbSync();
-    var i = +el.getAttribute('data-i'), w = el.getAttribute('data-w');
-    var dupe = CB.sents.some(function (s, j) { return j !== i && s.kw && s.kw.toLowerCase() === w.toLowerCase(); });
-    if (dupe) { FX.toast('“' + w + '” is already a keyword in this chain — pick something distinct.', 'amber'); return; }
-    CB.sents[i].kw = w;
-    App.render();
-  };
-  ACTIONS['cb-kw-clear'] = function (el) { cbSync(); CB.sents[+el.getAttribute('data-i')].kw = ''; App.render(); };
-  ACTIONS['cb-kw-custom'] = function (el) {
-    cbSync();
-    var i = +el.getAttribute('data-i');
-    Modal.open('<div class="m-title">Your keyword for sentence ' + (i + 1) + '</div>'
-      + '<div class="m-sub">' + U.esc(CB.sents[i].text) + '</div>'
-      + '<div class="m-row"><input class="m-input" id="mKw" placeholder="One memorable word"></div>'
-      + '<div class="m-actions"><button class="btn" data-a="modal-close">Cancel</button>'
-      + '<button class="btn primary" data-a="cb-kw-custom-ok" data-i="' + i + '">Set keyword</button></div>');
-  };
-  ACTIONS['cb-kw-custom-ok'] = function (el) {
-    var i = +el.getAttribute('data-i');
-    var v = (document.getElementById('mKw').value || '').trim().split(/\s+/)[0] || '';
-    if (!v) return;
-    CB.sents[i].kw = v;
-    Modal.close(); App.render();
-  };
   ACTIONS['cb-edit'] = function (el) {
     cbSync();
     var i = +el.getAttribute('data-i');
@@ -359,6 +408,7 @@
     cbSync();
     var i = +el.getAttribute('data-i');
     CB.sents[i].text = CB.sents[i].text + ' ' + CB.sents[i + 1].text;
+    if (!CB.sents[i].kw && CB.sents[i + 1].kw) CB.sents[i].kw = CB.sents[i + 1].kw;
     CB.sents.splice(i + 1, 1);
     App.render();
   };
@@ -369,10 +419,17 @@
   };
   ACTIONS['cb-create'] = function () {
     cbSync();
+    var seen = {}, dupe = null;
+    CB.sents.forEach(function (s) {
+      var k = s.kw.toLowerCase();
+      if (seen[k]) dupe = s.kw;
+      seen[k] = 1;
+    });
+    if (dupe) { FX.toast('“' + dupe + '” is used twice — every keyword must be distinct so it can cue its own sentence.', 'amber', 3400); return; }
     var title = CB.title.trim() || 'Untitled chain';
     var sents = CB.sents.map(function (s, i) { return { id: 'sn' + (i + 1) + Store.uid(''), text: s.text, kw: s.kw }; });
-    var ch = Store.addChain(CB.subjectId || null, title, sents);
-    CB.title = ''; CB.raw = ''; CB.sents = null; CB.subjectId = '';
+    var ch = Store.addChain(CB.subjectId || null, CB.essayId || null, title, sents);
+    CB = { title: '', subjectId: '', essayId: '', raw: '', sents: null };
     FX.toast('Chain created — ' + sents.length + ' links ⛓️', 'green');
     App.go({ v: 'chain', id: ch.id });
   };
@@ -386,10 +443,11 @@
     var dueLinks = links.filter(function (l) { return l.due; }).length;
     var ord = chainOrderState(ch);
     var subj = ch.subjectId ? Store.subjectById(ch.subjectId) : null;
+    var essay = ch.essayId ? Store.essayById(ch.essayId) : null;
 
     var html = '<button class="bh-back" data-a="chains">← Chains</button>'
       + '<div class="board-head"><div><div class="bh-title">' + U.esc(ch.title) + '</div>'
-      + '<div class="bh-sub">' + (subj ? U.esc(subj.name) + ' · ' : '') + ch.sentences.length + ' links'
+      + '<div class="bh-sub">' + (essay ? '📝 ' + U.esc(essay.title) + ' · ' : '') + (subj ? U.esc(subj.name) + ' · ' : '') + ch.sentences.length + ' links'
       + (chainForged(ch) ? ' · <span style="color:var(--green);font-weight:800">⚓ forged — keep it polished</span>' : '') + '</div></div></div>';
 
     html += '<div class="chain-card">' + linksVisual(ch)
@@ -403,7 +461,7 @@
       + (ord.verified ? '⚓ Anchored' + (ord.hold ? ' · holding ' + ord.hold.pct + '%' : '') : ord.started ? 'In training' : 'Not started') + (ord.due ? ' · <span style="color:var(--amber)">due</span>' : '') + '</div>'
       + '<div style="display:flex;gap:7px;flex-wrap:wrap">'
       + '<button class="btn" data-a="game-arrange" data-id="' + ch.id + '">Arrange</button>'
-      + '<button class="btn" data-a="game-nextlink" data-id="' + ch.id + '">Next link</button></div></div>';
+      + '<button class="btn" data-a="game-nextlink" data-id="' + ch.id + '">Recall the chain</button></div></div>';
 
     html += '<div class="stage"><div class="st-num">Stage 2 · Links</div><div class="st-name">Keyword → sentence</div>'
       + '<div class="st-desc">Each keyword becomes a recall card: see the keyword, produce the full sentence.</div>'
@@ -436,7 +494,6 @@
   ACTIONS['chain-drill'] = function (el) {
     var ch = Store.chainById(el.getAttribute('data-id'));
     var q = Store.chainFacets(ch).map(function (f) { return f.key; });
-    // due-first ordering
     q.sort(function (a, b) {
       var ha = U.hold(a), hb = U.hold(b);
       return (ha ? ha.r : 1.01) - (hb ? hb.r : 1.01);
@@ -476,13 +533,13 @@
   ACTIONS['arr-pick'] = function (el) {
     var ch = Store.chainById(AR.chId);
     var si = +el.getAttribute('data-si');
-    if (si === AR.placed.length) {         // correct: the si-th sentence is next
+    if (si === AR.placed.length) {
       AR.placed.push(si);
       if (AR.placed.length === ch.sentences.length) {
         var g = AR.errors === 0 ? 3 : (AR.errors <= 2 ? 2 : 1);
         var res = Store.applyGrade('o:' + ch.id, g);
         App.renderTop();
-        var msg = AR.errors === 0 ? 'Perfect order! Sequence anchored.' : 'Chain complete — ' + AR.errors + ' slip' + (AR.errors > 1 ? 's' : '') + '. It’ll come back sooner.';
+        var msg = AR.errors === 0 ? 'Perfect order ✓' : 'Chain complete — ' + AR.errors + ' slip' + (AR.errors > 1 ? 's' : '') + '. It’ll come back sooner.';
         FX.toast(msg, AR.errors === 0 ? 'green' : 'amber');
         if (res.wentGreen) { FX.confetti(); }
         AR = null;
@@ -500,57 +557,60 @@
     }
   };
 
-  /* --- Next-link game ------------------------------------------------------------ */
-  var NL = null; // {chId, order:[transitions], i, errors, hintUsed}
+  /* --- Recall-the-chain game (nothing is given away) ---------------------------
+     Round 0 asks for link 1 cold — exactly like the exam will. Each later
+     round shows only what you have already produced yourself.               */
+  var NL = null; // {chId, i, errors, hints}
   V.nextlink = function (route) {
     var ch = Store.chainById(route.id);
-    if (!NL || NL.chId !== ch.id) {
-      var tr = [];
-      for (var i = 0; i < ch.sentences.length - 1; i++) tr.push(i);
-      NL = { chId: ch.id, order: tr, i: 0, errors: 0, hints: 0 };
-    }
-    var t = NL.order[NL.i];
+    if (!NL || NL.chId !== ch.id) NL = { chId: ch.id, i: 0, errors: 0, hints: 0 };
+    var n = ch.sentences.length;
     var html = '<button class="bh-back" data-a="chain-open" data-id="' + ch.id + '">← ' + U.esc(ch.title) + '</button>'
-      + '<div class="game-zone"><div class="gz-title">Next link</div>'
-      + '<div class="gz-sub">What follows? Type the next keyword in the chain. (' + (NL.i + 1) + '/' + NL.order.length + ')</div>'
-      + '<div class="nl-prompt"><span class="kn" style="color:var(--text3)">' + (t + 1) + '.</span> ' + U.esc(ch.sentences[t].kw) + ' <span class="arr">→</span> <span style="color:var(--text3)">?</span></div>'
-      + '<input class="nl-input" id="nlInput" autocomplete="off" placeholder="Next keyword…">'
+      + '<div class="game-zone"><div class="gz-title">Recall the chain</div>'
+      + '<div class="gz-sub">Walk the whole chain from memory, link by link — starting from nothing, like on exam day. (' + (NL.i + 1) + '/' + n + ')</div>';
+    if (NL.i === 0) {
+      html += '<div class="nl-prompt"><span style="color:var(--text3)">Start of the chain</span> <span class="arr">→</span> <span style="color:var(--text3)">?</span></div>';
+    } else {
+      html += '<div class="nl-prompt"><span class="kn" style="color:var(--text3)">' + NL.i + '.</span> ' + U.esc(ch.sentences[NL.i - 1].kw) + ' <span class="arr">→</span> <span style="color:var(--text3)">?</span></div>';
+    }
+    html += '<input class="nl-input" id="nlInput" autocomplete="off" placeholder="' + (NL.i === 0 ? 'What’s link 1?' : 'What follows?') + '">'
       + '<div class="sess-actions"><button class="btn primary" data-a="nl-check" data-id="' + ch.id + '">Check</button>'
       + '<button class="btn" data-a="nl-hint" data-id="' + ch.id + '">First letter</button>'
       + '<span class="m-hint">Errors: <b>' + NL.errors + '</b> · Hints: <b>' + NL.hints + '</b></span></div></div>';
     return html;
   };
   ACTIONS['game-nextlink'] = function (el) {
-    var ch = Store.chainById(el.getAttribute('data-id'));
-    if (ch.sentences.length < 2) return;
     NL = null;
-    App.go({ v: 'nextlink', id: ch.id });
+    App.go({ v: 'nextlink', id: el.getAttribute('data-id') });
   };
   ACTIONS['nl-hint'] = function () {
     var ch = Store.chainById(NL.chId);
-    var ans = ch.sentences[NL.order[NL.i] + 1].kw;
+    var ans = ch.sentences[NL.i].kw;
     NL.hints++;
     var inp = document.getElementById('nlInput');
     inp.value = ans.charAt(0);
     inp.focus();
     FX.toast('Starts with “' + ans.charAt(0).toUpperCase() + '”', '', 1400);
+    var hEl = document.querySelectorAll('.game-zone .m-hint b')[1];
+    if (hEl) hEl.textContent = NL.hints;
   };
   ACTIONS['nl-check'] = function () {
     var ch = Store.chainById(NL.chId);
-    var ans = ch.sentences[NL.order[NL.i] + 1].kw.toLowerCase().replace(/[^a-z0-9]/g, '');
+    var norm = function (s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
+    var ans = norm(ch.sentences[NL.i].kw);
     var inp = document.getElementById('nlInput');
-    var got = (inp.value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    var ok = got === ans || (got.length >= 4 && ans.indexOf(got) === 0);
+    var got = norm(inp.value);
+    var ok = got && (got === ans || (got.length >= 4 && ans.indexOf(got) === 0));
     if (ok) {
       inp.classList.remove('bad'); inp.classList.add('ok');
       setTimeout(function () {
         NL.i++;
-        if (NL.i >= NL.order.length) {
+        if (NL.i >= ch.sentences.length) {
           var miss = NL.errors + Math.ceil(NL.hints / 2);
           var g = miss === 0 ? 3 : (miss <= 2 ? 2 : 1);
           var res = Store.applyGrade('o:' + NL.chId, g);
           App.renderTop();
-          FX.toast(miss === 0 ? 'Flawless — every link recalled ⚓' : 'Chain walked — ' + NL.errors + ' errors, ' + NL.hints + ' hints.', miss === 0 ? 'green' : 'amber');
+          FX.toast(miss === 0 ? 'Flawless — the whole chain from a cold start ⚓' : 'Chain walked — ' + NL.errors + ' errors, ' + NL.hints + ' hints.', miss === 0 ? 'green' : 'amber');
           if (res.wentGreen) FX.confetti();
           var id = NL.chId; NL = null;
           App.go({ v: 'chain', id: id });
@@ -567,7 +627,7 @@
   };
 
   /* --- Recital ----------------------------------------------------------------- */
-  var RC = null; // {chId, submitted:false, text, showSkel, graded:{}}
+  var RC = null; // {chId, submitted, text, showSkel, graded:{}}
   V.recital = function (route) {
     var ch = Store.chainById(route.id);
     if (!RC || RC.chId !== ch.id) RC = { chId: ch.id, submitted: false, text: '', showSkel: false, graded: {} };
@@ -648,18 +708,18 @@
     var now = Date.now();
     var ret = D.settings.retention;
 
-    // gather every facet with content
-    var rows = []; // {key, subj, topic, verified, conf, srs}
+    var rows = [];
     D.subjects.forEach(function (subj) {
       Store.subjectFacets(subj).forEach(function (f) {
         var st = D.state[f.key];
-        rows.push({ key: f.key, subjName: subj.name, topicName: f.topic.name, st: st, verified: Store.isVerified(f.key) });
+        rows.push({ key: f.key, groupLbl: subj.name + ' · ' + f.tab.name, st: st, verified: Store.isVerified(f.key) });
       });
     });
     D.chains.forEach(function (ch) {
+      var e = ch.essayId ? Store.essayById(ch.essayId) : null;
       Store.chainFacets(ch).forEach(function (f) {
         var st = D.state[f.key];
-        rows.push({ key: f.key, subjName: 'Chains', topicName: ch.title, st: st, verified: Store.isVerified(f.key) });
+        rows.push({ key: f.key, groupLbl: 'Chains · ' + (e ? e.title : ch.title), st: st, verified: Store.isVerified(f.key) });
       });
     });
 
@@ -676,21 +736,19 @@
       + '<div class="bh-sub">Honest numbers. “Recall right now” can go down — that’s the point.</div></div></div>';
 
     html += '<div class="statrow">'
-      + statCard(total ? U.pct(verified, total) + '%' : '—', 'Anchored', 'var(--green)', verified + ' of ' + total + ' facets recall-verified')
+      + statCard(total ? U.pct(verified, total) + '%' : '—', 'Anchored', 'var(--green)', verified + ' of ' + total + ' cards, 3+ recalls each')
       + statCard(meanR === null ? '—' : Math.round(meanR * 100) + '%', 'Recall right now', meanR === null ? 'var(--text3)' : U.holdColor(meanR), 'estimated live retrievability')
       + statCard(due, 'Ready to strengthen', due ? 'var(--amber)' : 'var(--text3)', 'at or below your ' + Math.round(ret * 100) + '% target')
-      + statCard(Math.round(banked), 'Memory-days banked', 'var(--accent)', 'total stability across facets')
+      + statCard(Math.round(banked), 'Memory-days banked', 'var(--accent)', 'total stability across cards')
       + statCard(got + miss ? U.pct(got, got + miss) + '%' : '—', 'Recall accuracy', 'var(--accent)', '✓ ' + got + ' · ✗ ' + miss + ' all-time')
       + '</div>';
 
     html += '<div class="sp-grid">';
 
-    // per subject/topic verified bars
     html += '<div class="sp-card wide"><div class="sp-title">Anchored across your syllabus</div>';
     var groups = {};
     rows.forEach(function (r) {
-      var gk = r.subjName + ' · ' + r.topicName;
-      var g = groups[gk] || (groups[gk] = { n: 0, v: 0, gu: 0, a: 0, rr: 0 });
+      var g = groups[r.groupLbl] || (groups[r.groupLbl] = { n: 0, v: 0, gu: 0, a: 0, rr: 0 });
       g.n++;
       if (r.verified) g.v++;
       else if (r.st && r.st.conf === 'g') g.gu++;
@@ -703,11 +761,11 @@
         + seg(g.v, g.n, 'var(--green)') + seg(g.gu, g.n, 'rgba(52,211,153,.35)') + seg(g.a, g.n, 'var(--amber)') + seg(g.rr, g.n, 'var(--red)')
         + '</div><div class="sp-pct">' + U.pct(g.v, g.n) + '%</div></div>';
     });
-    html += '<div class="sp-legend"><span><span class="lg-dot" style="background:var(--green)"></span>Anchored (verified)</span>'
-      + '<span><span class="lg-dot" style="background:rgba(52,211,153,.35)"></span>Tagged green, untested</span>'
+    html += '<div class="sp-legend"><span><span class="lg-dot" style="background:var(--green)"></span>Anchored (3+ recalls)</span>'
+      + '<span><span class="lg-dot" style="background:rgba(52,211,153,.35)"></span>Tagged green, unproven</span>'
       + '<span><span class="lg-dot" style="background:var(--amber)"></span>Getting there</span>'
       + '<span><span class="lg-dot" style="background:var(--red)"></span>Not yet</span>'
-      + '<span style="margin-left:auto">% = verified share</span></div></div>';
+      + '<span style="margin-left:auto">% = anchored share</span></div></div>';
 
     // forecast
     var fc = [];
@@ -785,6 +843,51 @@
   /* ══════════════════════════════════════════════════════════════════════
      DATA & SETTINGS
      ════════════════════════════════════════════════════════════════════ */
+  function aiPromptText() {
+    return [
+      '# Anchor import format — instructions for an AI assistant',
+      '',
+      'You are converting my study notes into an import file for **Anchor**, my memorisation app.',
+      '',
+      '## Output rules',
+      '',
+      '1. Reply with ONE JSON code block and nothing else.',
+      '2. Use exactly this shape:',
+      '',
+      '```json',
+      '{',
+      '  "anchorShare": 2,',
+      '  "subject": {',
+      '    "name": "Subject name",',
+      '    "tagline": "short subtitle (optional)",',
+      '    "dual": false,',
+      '    "tabs": [',
+      '      {',
+      '        "name": "Tab name — one area of the syllabus",',
+      '        "cards": [',
+      '          {',
+      '            "term": "Front of the card — the cue I will be shown",',
+      '            "back": "Back of the card — exactly what I must recall",',
+      '            "group": "Optional small heading that clusters nearby cards inside a tab"',
+      '          }',
+      '        ]',
+      '      }',
+      '    ]',
+      '  }',
+      '}',
+      '```',
+      '',
+      '3. **dual mode:** if I ask for definition + key-facts style (suits subjects like HSC Business Studies), set `"dual": true` and give each card `"def"` and/or `"key"` fields INSTEAD of `"back"`.',
+      '4. **Tabs mirror how the syllabus is examined** — e.g. "Finance — Role", "Finance — Influences". Aim for 4–16 tabs.',
+      '5. Card fronts must work as retrieval cues on their own. Keep each back under ~80 words; use " · " separators or \\n line breaks for lists.',
+      '6. Use `"group"` sparingly — only when a tab naturally splits into labelled clusters of cards.',
+      '7. Cover ALL of my notes. Do not invent content that is not in them.',
+      '8. Output valid JSON: escape quotes and newlines properly. Do not include comments or ids.',
+      '',
+      'After this message I will paste my notes. Convert them completely.'
+    ].join('\n');
+  }
+
   V.data = function () {
     var D = Store.data();
     var s = D.settings;
@@ -794,7 +897,7 @@
     html += '<div class="set-grid">';
 
     html += '<div class="set-card"><div class="set-title">Study settings</div>'
-      + '<div class="set-desc">The retention target is the recall probability at which a card comes due (research default: 90%).</div>'
+      + '<div class="set-desc">The retention target is the recall probability at which a card comes due (research default: 90%). Three successful recalls anchor a card.</div>'
       + '<div class="set-row"><span class="set-lbl">Daily review goal</span><input class="set-input" id="setGoal" type="number" min="5" max="200" value="' + s.dailyGoal + '"></div>'
       + '<div class="set-row"><span class="set-lbl">Retention target</span><select class="set-input wide" id="setRet">'
       + [0.8, 0.85, 0.9, 0.95].map(function (r) { return '<option value="' + r + '"' + (Math.abs(s.retention - r) < 0.001 ? ' selected' : '') + '>' + Math.round(r * 100) + '%</option>'; }).join('')
@@ -803,8 +906,8 @@
       + '<div class="set-row"><span class="set-lbl">Theme</span><button class="btn" data-a="theme">Toggle light / dark</button></div>'
       + '<div class="m-actions" style="justify-content:flex-start"><button class="btn primary" data-a="set-save">Save settings</button></div></div>';
 
-    html += '<div class="set-card"><div class="set-title">Subjects &amp; exam dates</div>'
-      + '<div class="set-desc">Set each exam date — Anchor compresses review scheduling as it approaches and never schedules past it.</div>';
+    html += '<div class="set-card"><div class="set-title">Subjects — share &amp; exam dates</div>'
+      + '<div class="set-desc">⇪ downloads a subject file you can send a mate (they import it from the Harbour). Exam dates compress scheduling as the day approaches.</div>';
     if (!D.subjects.length) html += '<div class="m-hint">No subjects yet.</div>';
     D.subjects.forEach(function (subj) {
       html += '<div class="set-row"><span class="set-lbl">' + U.esc(subj.name) + '</span>'
@@ -815,17 +918,21 @@
     if (D.subjects.length) html += '<div class="m-actions" style="justify-content:flex-start"><button class="btn primary" data-a="set-exams">Save exam dates</button></div>';
     html += '</div>';
 
-    html += '<div class="set-card"><div class="set-title">Backup &amp; sharing</div>'
-      + '<div class="set-desc">Full backup includes progress. Subject share exports content only — perfect for sending a mate your syllabus.</div>'
+    html += '<div class="set-card"><div class="set-title">Build a subject with AI (outside Anchor)</div>'
+      + '<div class="set-desc">Anchor has no AI inside — but your favourite AI can format your notes into a perfect import file. Copy this prompt, paste it into ChatGPT/Claude/Gemini with your notes, save the JSON it returns as a <b>.json</b> file, then import it below.</div>'
+      + '<div class="m-actions" style="justify-content:flex-start;margin-top:0">'
+      + '<button class="btn primary" data-a="ai-copy">📋 Copy AI prompt</button>'
+      + '<button class="btn" data-a="ai-download">⬇ Download as .md</button></div></div>';
+
+    html += '<div class="set-card"><div class="set-title">Backup &amp; import</div>'
+      + '<div class="set-desc">Full backup includes progress. Import accepts backups, shared subjects, and AI-generated subject files.</div>'
       + '<div class="m-actions" style="justify-content:flex-start;margin-top:0">'
       + '<button class="btn primary" data-a="export-all">⬇ Export full backup</button>'
-      + '<button class="btn" data-a="import">⬆ Import file</button></div>'
-      + '<input type="file" id="importFile" accept=".json,application/json" style="display:none">'
-      + '<div class="m-hint" id="lastBackupHint"></div></div>';
+      + '<button class="btn" data-a="import">⬆ Import file</button></div></div>';
 
     html += '<div class="set-card"><div class="set-title">The science, in one breath</div>'
       + '<div class="set-desc">Anchor is built on the two study techniques rated “high utility” across all of educational psychology — practice testing and spaced practice — scheduled by FSRS, the open algorithm trained on 500M+ real reviews.</div>'
-      + '<div class="sci-quote">Retrieval beats re-reading (g≈0.5–0.6, strongest for secondary students). Spacing beats cramming. Producing beats recognising. Self-chosen cues beat given ones. And green you earned by recall beats green you gave yourself.</div>'
+      + '<div class="sci-quote">Retrieval beats re-reading (g≈0.5–0.6, strongest for secondary students). Spacing beats cramming. Producing beats recognising. Self-chosen cues beat given ones. And green earned by three real recalls beats green you gave yourself.</div>'
       + '<div class="m-hint">Full write-up with citations lives in <b>docs/RESEARCH.md</b> in the project.</div></div>';
 
     html += '<div class="set-card"><div class="set-title" style="color:var(--red)">Danger zone</div>'
@@ -863,19 +970,36 @@
   };
   ACTIONS['del-subj'] = function (el) {
     var subj = Store.subjectById(el.getAttribute('data-id'));
-    Modal.confirm('Delete “' + subj.name + '”?', 'All its topics, items, chains and study history will be permanently removed.', 'Delete subject', true, function () {
+    Modal.confirm('Delete “' + subj.name + '”?', 'All its tabs, cards, chains and study history will be permanently removed.', 'Delete subject', true, function () {
       Store.deleteSubject(subj.id);
-      App.render();
+      if (App.route.v === 'subject') App.go({ v: 'home' });
+      else App.render();
       FX.toast('Subject deleted.', '');
     });
   };
-  function download(name, text) {
+
+  function download(name, text, mime) {
     var a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    a.href = URL.createObjectURL(new Blob([text], { type: mime || 'application/json' }));
     a.download = name;
     document.body.appendChild(a); a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 400);
   }
+
+  ACTIONS['ai-copy'] = function (el) {
+    var txt = aiPromptText();
+    function done() { FX.toast('AI prompt copied — paste it into any AI with your notes 📋', 'green', 3000); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(done, function () { download('anchor-ai-prompt.md', txt, 'text/markdown'); });
+    } else {
+      download('anchor-ai-prompt.md', txt, 'text/markdown');
+    }
+  };
+  ACTIONS['ai-download'] = function () {
+    download('anchor-ai-prompt.md', aiPromptText(), 'text/markdown');
+    FX.toast('Prompt downloaded ✓', 'green');
+  };
+
   ACTIONS['export-all'] = function () {
     download('anchor-backup-' + Store.todayISO() + '.json', Store.exportAll());
     FX.toast('Backup downloaded ✓', 'green');
@@ -884,7 +1008,7 @@
     var id = el.getAttribute('data-id');
     var subj = Store.subjectById(id);
     Modal.open('<div class="m-title">Share “' + U.esc(subj.name) + '”</div>'
-      + '<div class="m-sub">Choose what to include. “Content only” is what you send a mate.</div>'
+      + '<div class="m-sub">Downloads a file your mate imports from the Harbour (or Data page). “Content only” is the one to send.</div>'
       + '<div class="m-actions" style="justify-content:flex-start">'
       + '<button class="btn primary" data-a="share-subj-go" data-id="' + id + '" data-p="0">Content only</button>'
       + '<button class="btn" data-a="share-subj-go" data-id="' + id + '" data-p="1">Content + my progress</button></div>');
@@ -894,9 +1018,10 @@
     var subj = Store.subjectById(id);
     download('anchor-' + subj.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + (p ? '-with-progress' : '') + '.json', Store.exportSubject(id, p));
     Modal.close();
-    FX.toast('Share file downloaded ✓', 'green');
+    FX.toast('Subject file downloaded — send it over ⇪', 'green');
   };
   ACTIONS['import'] = function () {
+    Modal.close();
     var f = document.getElementById('importFile');
     f.onchange = function () {
       if (!f.files || !f.files[0]) return;
@@ -904,10 +1029,10 @@
       reader.onload = function () {
         try {
           var res = Store.importData(reader.result);
-          FX.toast(res.kind === 'full' ? 'Backup restored ✓' : '“' + res.name + '” imported ✓', 'green');
+          FX.toast(res.kind === 'full' ? 'Backup restored ✓' : '“' + res.name + '” imported — ' + res.cards + ' cards ✓', 'green', 3000);
           App.renderTop(); App.render();
         } catch (e) {
-          FX.toast('That doesn’t look like an Anchor file.', 'amber');
+          FX.toast('That doesn’t look like an Anchor file — check it’s the JSON the AI produced.', 'amber', 3400);
         }
       };
       reader.readAsText(f.files[0]);
@@ -916,7 +1041,7 @@
     f.click();
   };
   ACTIONS['reset-progress'] = function () {
-    Modal.confirm('Reset ALL progress?', 'Every confidence tag, review schedule and stat goes back to zero. Your subjects, items and chains are kept.', 'Reset progress', true, function () {
+    Modal.confirm('Reset ALL progress?', 'Every confidence tag, review schedule and stat goes back to zero. Your subjects, cards and chains are kept.', 'Reset progress', true, function () {
       Store.resetProgress();
       App.renderTop(); App.render();
       FX.toast('Progress reset.', '');

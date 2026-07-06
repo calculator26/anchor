@@ -35,11 +35,11 @@
 
 ## 4. The Green System (the psychological core)
 
-Every studyable *facet* (a definition, a set of key facts, a chain link) has:
+Every studyable *facet* (a card side, a chain link) has:
 
 1. **Confidence tag** (user-set anytime — the instant-gratification triage from the original tool): `Know it / Getting there / Not yet`. Sets card colour immediately. Autonomy preserved.
 2. **Memory state** (earned only by recall events): FSRS `{Difficulty, Stability, last review}` → live **Retrievability** R.
-3. **Anchored** (the real green): tagged *Know it* **and** verified by at least one successful recall. Unverified greens render with a hollow dot + "untested" — a gentle, ever-present nudge to prove it.
+3. **Anchored** (the real green): **three successful recalls** — the successive-relearning criterion, straight from Rawson & Dunlosky. One "Got it" turns a card amber with a visible `⚓ 1/3` progress chip; the third flips it green with the full celebration. Manually-tagged greens show `N/3` until proven. The near-miss chip (`2/3`) is a deliberate goal-gradient hook.
 
 **The fade:** an anchored card's green dot/border saturation is a function of live R. At R < target (default 0.90) it enters the **due queue** and shows *Review due*. Neglect the app for a week and the board visibly drains toward amber — loss aversion pointed at the truth (§9 of RESEARCH.md).
 
@@ -53,7 +53,11 @@ Every studyable *facet* (a definition, a set of key facts, a chain link) has:
 
 ## 5. Mode A — Syllabus (categorical mastery)
 
-**Layout (evolves the Business Studies tool):** sticky nav: subject switcher · topic pills (Finance/Marketing/Operations) · unit tabs (Role/Influences/Processes/Strategies) · facet toggle (Definitions/Key Facts) · Review queue button with due badge · Stats. Item cards in three columns: term | content (hidden → reveal) | confidence + schedule + history dots.
+**The structure is deliberately two ideas deep: a subject has TABS, tabs hold CARDS.** No topic/unit/section vocabulary anywhere — a student makes one tab per syllabus area ("Finance — Role", "Finance — Influences", … 12 tabs for Business Studies) and fills it with cards. A card may carry an optional *group* heading, which renders as the small syllabus-style headings inside a tab — organisation without taxonomy.
+
+**Card styles per subject:** default is a plain flashcard (front/back). *Dual style* (definition + key facts per term) is an opt-in toggle at subject creation — right for Business-Studies-like subjects, invisible everywhere else.
+
+**Layout:** sticky nav: tab pills with mastery fill-bars · review queue with due badge · (dual only) Definitions/Key-facts toggle. Item cards in three columns: term | content (hidden → reveal) | confidence + hold bar + history dots.
 
 **Flows:**
 - *Browse & rate* (their original loop, kept): reveal → self-grade → next. Works in place, no session required.
@@ -66,10 +70,12 @@ Every studyable *facet* (a definition, a set of key facts, a chain link) has:
 
 The proven manual method, productised: *one keyword per sentence → master the sequence → expand each keyword back into its sentence → recite the lot.*
 
-**Builder:** paste paragraph/essay → auto sentence-split (editable: merge/split/edit) → for each sentence pick **your own** keyword by tapping a word in it (or typing one) — self-generated cues, enforced-unique. → Chain created; links render as an actual chain of link-icons.
+**Essays group chains.** A real essay is 3–5 paragraphs = 3–5 chains. An *essay* is a named folder; its paragraph chains live inside it with aggregate "paragraphs forged" progress. Chains can also stand alone.
+
+**Builder:** paste paragraph/essay → auto sentence-split (editable: merge/split/edit) → for each sentence **type your own keyword** — self-generated cues (typing them is itself an encoding act), enforced-unique. → Chain created; links render as an actual chain of link-icons.
 
 **Study stages (unlock by readiness, not by lock — the next stage is always *offered*):**
-1. **Order** — see the numbered keyword skeleton; then *Arrange* (shuffled keyword chips → tap into order; errors shown) and *Next-link* (given a keyword, recall what follows; first-letter hints). Clean runs grade the chain's own FSRS state.
+1. **Order** — *Arrange* (shuffled keyword chips → tap into order; errors shown) and *Recall the chain* (walk the whole sequence from a cold start: link 1 is asked, never shown — each round only displays keywords you already produced yourself, exactly like exam conditions; first-letter hints cost half an error). Clean runs grade the chain's own FSRS state.
 2. **Links** — each keyword ↔ sentence is a card in the normal recall loop (front: "¶3 · link 4 — *sustainability*", back: the sentence). Scheduled by FSRS like everything else.
 3. **Recital** — blank page, keyword skeleton optionally visible, write the paragraph from memory → self-check sentence-by-sentence against the original → per-sentence grades feed each link. Chain shows **Forged** when order + all links are anchored.
 
@@ -85,25 +91,29 @@ The proven manual method, productised: *one keyword per sentence → master the 
 
 ```jsonc
 {
-  "v": 1,
+  "v": 2,
   "settings": { "theme": "dark", "dailyGoal": 20, "retention": 0.9, "typeFirst": true },
   "subjects": [{
     "id": "biz-hsc", "name": "Business Studies", "tagline": "HSC", "examDate": "2026-10-19",
-    "topics": [{ "id": "finance", "name": "Finance",
-      "sections": [{ "id": "fin-role-strategic", "name": "Strategic Role & Objectives", "unit": "Role",
-        "items": [{ "id": "b001", "term": "Profitability", "def": "…", "key": "…" }] }] }]
+    "dual": true,                                    // opt-in definition+key-facts style
+    "tabs": [{ "id": "tab-fin-role", "name": "Finance — Role",
+      "cards": [{ "id": "b001", "term": "Profitability", "def": "…", "key": "…",
+                  "group": "Strategic Role & Objectives" }] }]   // simple subjects use "back" instead
   }],
-  "chains": [{ "id": "ch1", "subjectId": "biz-hsc", "title": "Operations essay ¶2",
+  "essays": [{ "id": "e1", "title": "Operations strategies essay", "subjectId": "biz-hsc" }],
+  "chains": [{ "id": "ch1", "subjectId": "biz-hsc", "essayId": "e1", "title": "Paragraph 2 — technology",
     "sentences": [{ "id": "s1", "text": "…", "kw": "sustainability" }], "created": "2026-07-05" }],
   "state": {
     "f:b001:def": { "conf": "g", "srs": { "S": 12.4, "D": 4.1, "last": "2026-07-01T…", "reps": 5, "lapses": 1 },
                      "hist": [{ "t": "…", "g": 3, "r": 0.87 }], "got": 4, "miss": 1 }
-    // keys: f:{itemId}:{def|key} · c:{chainId}:{sentenceId} · o:{chainId} (chain order state)
+    // keys: f:{cardId}:{card|def|key} · c:{chainId}:{sentenceId} · o:{chainId} (chain order state)
   },
   "act": { "2026-07-05": { "n": 34, "got": 30, "miss": 4, "greens": 6, "goalHit": true } },
   "meta": { "created": "2026-07-05", "milestones": ["streak3"] }
 }
 ```
+
+v1 saves (topics/sections/units) migrate automatically on load — card ids are preserved, so all study state carries over. The share format (`anchorShare: 2`) tolerates missing ids, which makes it the target format for **AI-generated subject files**: settings ships a copyable prompt that instructs any AI to emit exactly this JSON from a student's notes; Anchor imports it like any shared subject. AI stays outside the app.
 
 - Content and study-state are **separate namespaces** → a subject can be exported *content-only* and shared with a mate, or exported *with progress* as a personal backup. Import offers merge/replace.
 - Facet keys are stable and global-unique → the same schema powers items, chain links and chain order.
