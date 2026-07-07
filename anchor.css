@@ -1,5 +1,5 @@
 /* ============================================================================
-   Anchor · anchor.css — design system
+   Anchor Â· anchor.css â€” design system
    Dark-first. Ocean-depth navy, teal interactive, anchored green.
    Every celebratory animation is short (<600ms), crisp, and recall-triggered.
    ========================================================================== */
@@ -73,7 +73,7 @@ input, textarea, select { font-family: inherit; font-size: 15px; color: var(--te
 main#view { animation: viewIn .28s ease; }
 @keyframes viewIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
 
-/* ─── Top bar ─────────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Top bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .topbar {
   display: flex; align-items: center; gap: 18px;
   padding: 15px 2px 14px; margin-bottom: 20px;
@@ -126,7 +126,7 @@ main#view { animation: viewIn .28s ease; }
 }
 .icon-btn:hover { color: var(--text); border-color: var(--line2); }
 
-/* ─── Generic bits ─────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Generic bits â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .btn {
   font-size: 14.5px; font-weight: 700; padding: 10px 20px; border-radius: 10px;
   border: 1.5px solid var(--line); background: var(--card2); color: var(--text2); transition: all .14s;
@@ -161,7 +161,7 @@ main#view { animation: viewIn .28s ease; }
 .sec-badge { color: var(--green); font-size: 12px; letter-spacing: 0; text-transform: none; font-weight: 800;
   background: var(--green-soft); border: 1px solid var(--green-line); padding: 2px 10px; border-radius: 999px; }
 
-/* ─── Stat cards ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Stat cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .statrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
 .stat {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--r-md);
@@ -176,7 +176,7 @@ main#view { animation: viewIn .28s ease; }
 .stat.hot { background: var(--amber-soft); border-color: var(--amber-line); }
 .stat.hot .n { color: var(--amber); }
 
-/* ─── Harbour (home) ───────────────────────────────────────────────────── */
+/* â”€â”€â”€ Harbour (home) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .h-title { font-size: clamp(26px, 3.4vw, 36px); font-weight: 800; letter-spacing: -.02em; }
 .h-sub { color: var(--text2); margin: 4px 0 20px; font-size: 15.5px; }
 
@@ -226,7 +226,7 @@ main#view { animation: viewIn .28s ease; }
 .w-point b { display: block; font-size: 14px; margin-bottom: 3px; }
 .w-point span { font-size: 13px; color: var(--text2); line-height: 1.5; }
 
-/* ─── Subject board ────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Subject board â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .board-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
 .bh-back { color: var(--text3); font-size: 13.5px; font-weight: 700; padding: 4px 0; display: block; }
 .bh-back:hover { color: var(--accent); }
@@ -267,7 +267,7 @@ main#view { animation: viewIn .28s ease; }
 .ft-btn { font-size: 14px; font-weight: 600; padding: 8px 17px; border-radius: 8px; color: var(--text2); transition: all .13s; }
 .ft-btn.on { background: var(--accent); color: var(--ink); }
 
-/* ─── Item cards ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Item cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .item {
   display: grid; grid-template-columns: 240px minmax(0, 1fr) 236px;
   background: var(--card); border: 1px solid var(--line); border-left: 5px solid var(--line);
@@ -360,7 +360,7 @@ main#view { animation: viewIn .28s ease; }
 .prog-wrap .pbar { width: 230px; }
 .prog-lbl { font-size: 13.5px; font-weight: 600; color: var(--text2); }
 
-/* ─── Session player ───────────────────────────────────────────────────── */
+/* â”€â”€â”€ Session player â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .session { position: fixed; inset: 0; z-index: 90; background: var(--bg); overflow-y: auto; display: flex; flex-direction: column; }
 .sess-top { display: flex; align-items: center; gap: 16px; padding: 16px 24px; max-width: 900px; width: 100%; margin: 0 auto; }
 .sess-top .pbar { flex: 1; }
@@ -399,7 +399,7 @@ main#view { animation: viewIn .28s ease; }
 .ss-stat .n { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ss-stat .l { font-size: 12px; color: var(--text2); font-weight: 700; margin-top: 2px; }
 
-/* ─── Chains ───────────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Chains â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .chain-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 19px 21px; box-shadow: var(--shadow); margin-bottom: 13px; }
 .ch-top { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .ch-title { font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
@@ -478,7 +478,7 @@ button.kchip:hover { transform: translateY(-2px); }
 .cb-ta:focus { outline: none; border-color: var(--accent); }
 .linklike { color: var(--accent); font-size: 13px; font-weight: 700; text-decoration: underline; }
 
-/* ─── Stats page ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Stats page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .sp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .sp-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-md); padding: 18px 20px; box-shadow: var(--shadow); }
 .sp-card.wide { grid-column: 1 / -1; }
@@ -510,7 +510,7 @@ button.kchip:hover { transform: translateY(-2px); }
 .cal-top { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; margin-bottom: 5px; }
 .cal-note { font-size: 12.5px; color: var(--text3); margin-top: 3px; }
 
-/* ─── Data page / settings ─────────────────────────────────────────────── */
+/* â”€â”€â”€ Data page / settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .set-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; align-items: start; }
 .set-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-md); padding: 19px 21px; box-shadow: var(--shadow); }
 .set-title { font-size: 15.5px; font-weight: 800; margin-bottom: 6px; }
@@ -526,7 +526,7 @@ button.kchip:hover { transform: translateY(-2px); }
 .switch.on::after { left: 23px; }
 .sci-quote { border-left: 3px solid var(--accent); padding: 2px 0 2px 14px; font-size: 13.5px; color: var(--text2); line-height: 1.6; margin: 10px 0; }
 
-/* ─── Modal ────────────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .modal-back { position: fixed; inset: 0; background: rgba(4,8,14,.66); backdrop-filter: blur(3px); z-index: 100; display: flex; align-items: flex-start; justify-content: center; padding: 7vh 18px 18px; overflow-y: auto; animation: fadeIn .18s ease; }
 @keyframes fadeIn { from { opacity: 0; } }
 .modal { width: 100%; max-width: 560px; background: var(--card); border: 1px solid var(--line2); border-radius: var(--r-lg); box-shadow: var(--shadow-lg); padding: 24px 26px; animation: cardIn .22s ease; }
@@ -540,7 +540,7 @@ button.kchip:hover { transform: translateY(-2px); }
 .m-actions { display: flex; gap: 9px; margin-top: 20px; justify-content: flex-end; flex-wrap: wrap; }
 .m-hint { font-size: 12px; color: var(--text3); margin-top: 5px; line-height: 1.5; }
 
-/* ─── Toasts & FX ──────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Toasts & FX â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #toasts { position: fixed; bottom: 22px; right: 22px; z-index: 120; display: flex; flex-direction: column; gap: 9px; align-items: flex-end; }
 .toast {
   background: var(--card); border: 1px solid var(--line2); border-radius: 12px; box-shadow: var(--shadow-lg);
@@ -565,7 +565,7 @@ button.kchip:hover { transform: translateY(-2px); }
 .banner-anchored .ba-sub { font-size: 13.5px; color: var(--text2); margin-top: 2px; }
 @keyframes bannerIn { 0% { opacity: 0; transform: translateX(-50%) scale(.85); } 10% { opacity: 1; transform: translateX(-50%) scale(1.02); } 14% { transform: translateX(-50%) scale(1); } 82% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) translateY(-14px) scale(.98); } }
 
-/* ─── Responsive ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Responsive â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 @media (max-width: 1020px) {
   .item { grid-template-columns: 1fr; }
   .cell-term { border-right: none; border-bottom: 1px solid var(--line); }
@@ -592,3 +592,28 @@ button.kchip:hover { transform: translateY(-2px); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* â”€â”€ research-alignment additions: pre-reveal confidence + answer matching â”€â”€ */
+.pc-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 4px}
+.pc-lbl{font-size:12.5px;color:var(--text3);margin-right:2px}
+.pcbtn{background:var(--bg3);border:1px solid var(--line);color:var(--text2);
+  border-radius:999px;padding:5px 13px;font-size:12.5px;font-weight:600;cursor:pointer;
+  transition:border-color .15s,color .15s,background .15s}
+.pcbtn:hover{border-color:var(--text3)}
+.pcbtn.g.on{border-color:var(--green);color:var(--green);background:rgba(52,211,153,.1)}
+.pcbtn.a.on{border-color:var(--amber);color:var(--amber);background:rgba(251,191,36,.1)}
+.pcbtn.r.on{border-color:var(--red);color:var(--red);background:rgba(248,113,113,.1)}
+
+.match-box{background:var(--bg3);border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px;margin:10px 0 4px}
+.match-head{display:flex;align-items:baseline;gap:10px}
+.match-score{font-size:22px;font-weight:800}
+.match-sub{font-size:12.5px;color:var(--text3)}
+.match-ideas{margin-top:9px;display:flex;flex-direction:column;gap:5px}
+.mi{display:flex;gap:8px;font-size:13px;line-height:1.45;color:var(--text2)}
+.mi .mi-dot{flex:none;font-weight:700}
+.mi.hit .mi-dot{color:var(--green)}
+.mi.miss{color:var(--text)}
+.mi.miss .mi-dot{color:var(--red)}
+
+.gbtn.sug{outline:2px solid var(--accent);outline-offset:2px;position:relative}
