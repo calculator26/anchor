@@ -33,27 +33,9 @@
   }
 
   /* --- persistence ----------------------------------------------------------- */
-  var quiet = false; // true while applying a cloud pull, so we don't push it straight back
-
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(S)); }
     catch (e) { console.error('Anchor: save failed', e); }
-    if (!quiet && window.Cloud) window.Cloud.onLocalSave();
-  }
-
-  // Swap in a full state object (from the cloud) without triggering a push.
-  function replaceAll(parsed) {
-    if (parsed && parsed.v === 1) parsed = migrateV1(parsed);
-    S = withDefaults(parsed && parsed.v === 2 ? parsed : blank());
-    if (!S.meta.created) S.meta.created = todayISO();
-    quiet = true; save(); quiet = false;
-  }
-
-  // Wipe this device's copy (sign-out) — the cloud copy is untouched.
-  function clearLocal() {
-    S = blank();
-    S.meta.created = todayISO();
-    try { localStorage.removeItem(KEY); } catch (e) {}
   }
 
   function load() {
@@ -496,8 +478,7 @@
   window.Store = {
     GREEN_CRITERION: GREEN_CRITERION,
     data: function () { return S; },
-    save: save, load: load, replaceAll: replaceAll, clearLocal: clearLocal,
-    uid: uid, todayISO: todayISO,
+    save: save, load: load, uid: uid, todayISO: todayISO,
     subjectById: subjectById, chainById: chainById, essayById: essayById,
     cardModes: cardModes, facetText: facetText,
     subjectFacets: subjectFacets, chainFacets: chainFacets, resolveFacet: resolveFacet,

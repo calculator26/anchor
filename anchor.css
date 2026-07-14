@@ -565,52 +565,6 @@ button.kchip:hover { transform: translateY(-2px); }
 .banner-anchored .ba-sub { font-size: 13.5px; color: var(--text2); margin-top: 2px; }
 @keyframes bannerIn { 0% { opacity: 0; transform: translateX(-50%) scale(.85); } 10% { opacity: 1; transform: translateX(-50%) scale(1.02); } 14% { transform: translateX(-50%) scale(1); } 82% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) translateY(-14px) scale(.98); } }
 
-/* ─── Cloud sync chip & auth gate ──────────────────────────────────────── */
-.sync-chip {
-  display: flex; align-items: center; gap: 5px;
-  background: var(--card); border: 1px solid var(--line); border-radius: 999px;
-  padding: 6px 13px; font-size: 12.5px; font-weight: 700; color: var(--text3);
-  transition: color .2s, border-color .2s;
-}
-.sync-chip.ok { color: var(--green); border-color: var(--green-line); }
-.sync-chip.sync { color: var(--accent); border-color: var(--accent-line); }
-.sync-chip.warn { color: var(--amber); border-color: var(--amber-line); }
-.sync-chip.err { color: var(--red); border-color: var(--red-line); }
-.sync-chip[hidden] { display: none; }
-
-body.gated .topnav, body.gated .goal-chip, body.gated .streak-chip, body.gated .sync-chip { display: none; }
-
-.auth-wrap {
-  max-width: 420px; margin: 6vh auto 0; display: flex; flex-direction: column; gap: 22px;
-  animation: viewIn .28s ease;
-}
-.auth-hero { text-align: center; }
-.auth-anchor { font-size: 44px; display: block; margin-bottom: 6px; }
-.auth-title { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
-.auth-sub { font-size: 14px; color: var(--text2); line-height: 1.6; margin-top: 8px; }
-.auth-card {
-  background: var(--card); border: 1px solid var(--line2); border-radius: var(--r-lg);
-  box-shadow: var(--shadow-lg); padding: 26px 28px;
-}
-.auth-tabs {
-  display: flex; gap: 4px; background: var(--card2); border-radius: 11px; padding: 4px; margin-bottom: 20px;
-}
-.auth-tab {
-  flex: 1; padding: 9px 4px; border-radius: 8px; font-size: 14px; font-weight: 700; color: var(--text2);
-  transition: all .15s;
-}
-.auth-tab.on { background: var(--card); color: var(--accent); box-shadow: var(--shadow); }
-.auth-lbl { display: block; font-size: 12.5px; font-weight: 700; color: var(--text2); margin: 13px 0 6px; letter-spacing: .03em; }
-.auth-lbl:first-of-type { margin-top: 0; }
-.auth-input.set-input { width: 100%; padding: 11px 14px; }
-.auth-err {
-  margin-top: 14px; padding: 10px 14px; border-radius: 10px; font-size: 13.5px; line-height: 1.5;
-  color: var(--red); background: var(--red-soft); border: 1px solid var(--red-line);
-}
-.auth-go { width: 100%; margin-top: 18px; justify-content: center; }
-.auth-go[disabled] { opacity: .6; cursor: default; }
-.auth-hint { font-size: 12px; color: var(--text3); margin-top: 12px; line-height: 1.55; }
-
 /* ─── Responsive ───────────────────────────────────────────────────────── */
 @media (max-width: 1020px) {
   .item { grid-template-columns: 1fr; }

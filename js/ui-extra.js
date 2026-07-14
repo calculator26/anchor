@@ -1111,15 +1111,10 @@
   V.data = function () {
     var D = Store.data();
     var s = D.settings;
-    var cloudOn = window.Cloud && Cloud.isOn();
     var html = '<div class="board-head"><div><div class="bh-title">Data &amp; settings</div>'
-      + '<div class="bh-sub">' + (cloudOn
-        ? 'Every change syncs to your account automatically. Exports still make good belt-and-braces backups.'
-        : 'Your data lives on this device. Export regularly — it’s one tap.') + '</div></div></div>';
+      + '<div class="bh-sub">Your data lives on this device. Export regularly — it’s one tap.</div></div></div>';
 
     html += '<div class="set-grid">';
-
-    if (window.Cloud) html += Cloud.accountCard();
 
     html += '<div class="set-card"><div class="set-title">Study settings</div>'
       + '<div class="set-desc">The retention target is the recall probability at which a card comes due (research default: 90%). Three successful recalls anchor a card.</div>'
@@ -1274,21 +1269,9 @@
     });
   };
   ACTIONS['wipe-all'] = function () {
-    var cloudOn = window.Cloud && Cloud.isOn();
-    Modal.confirm('Erase EVERYTHING?',
-      'Subjects, chains, progress — all of it, gone from this device' + (cloudOn ? ' and from your cloud account' : '') + '.',
-      'Erase everything', true, function () {
-      var wipeLocal = function () {
-        localStorage.removeItem('anchor_v1');
-        localStorage.removeItem('anchor_dirty');
-        location.reload();
-      };
-      if (cloudOn) {
-        Cloud.wipeCloud(function (ok) {
-          if (ok) wipeLocal();
-          else FX.toast('Couldn’t erase the cloud copy — are you offline? Nothing was deleted.', 'amber', 3400);
-        });
-      } else wipeLocal();
+    Modal.confirm('Erase EVERYTHING?', 'Subjects, chains, progress — all of it, gone from this device.', 'Erase everything', true, function () {
+      localStorage.removeItem('anchor_v1');
+      location.reload();
     });
   };
 })();
