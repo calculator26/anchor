@@ -2,19 +2,14 @@
 
 The self-directed memorisation app for high-stakes students. A live map of your memory where **green is earned by recall, fades with real forgetting**, and every satisfying pixel is scientifically honest.
 
-Built on the two study techniques rated "high utility" across all of educational psychology — **practice testing** and **spaced practice** — scheduled by **FSRS-6** (the open algorithm trained on 500M+ real reviews, the one behind modern Anki). No AI inside.
-
-Runs in two modes:
-
-- **Local-only** (default, zero setup): everything lives on-device in `localStorage`.
-- **Cloud mode**: sign in with a username + password and everything saves online automatically — same account on any device. Setup is ~15 minutes with a free Supabase project: **[docs/CLOUD-SETUP.md](docs/CLOUD-SETUP.md)**.
+Built on the two study techniques rated "high utility" across all of educational psychology — **practice testing** and **spaced practice** — scheduled by **FSRS-6** (the open algorithm trained on 500M+ real reviews, the one behind modern Anki), running entirely on-device. No accounts, no server, no AI.
 
 ## Run it
 
-It's a static app — no build step. Any of these work:
+It's a static app. Any of these work:
 
 - **Local:** `node dev-server.js` → http://localhost:4173
-- **Deploy:** drop the folder on GitHub Pages / Netlify / Vercel / Cloudflare Pages. Done — it's a full PWA (installable, offline) when served over HTTPS. To turn on accounts + online sync, follow [docs/CLOUD-SETUP.md](docs/CLOUD-SETUP.md).
+- **Deploy:** drop the folder on Netlify / Vercel / GitHub Pages / Cloudflare Pages. Done — it's a full PWA (installable, offline) when served over HTTPS.
 
 ## What's inside
 
@@ -23,8 +18,6 @@ It's a static app — no build step. Any of these work:
 | `index.html` `anchor.css` | App shell + design system (dark-first, light theme included) |
 | `js/fsrs.js` | FSRS-6 scheduler — retrievability, stability, exam-date compression |
 | `js/store.js` | Data layer — content/state separation, export/import/share, streaks |
-| `js/config.js` `js/cloud.js` | Cloud layer — username/password accounts + automatic online sync (Supabase) |
-| `supabase-setup.sql` | One-time database setup script for cloud mode |
 | `js/seed.js` | Full HSC Business Studies syllabus (255 items / 443 facets) + demo chain |
 | `js/ui-main.js` | Harbour, subject boards (Mode A), session player, editors |
 | `js/ui-extra.js` | Chains (Mode B), stats dashboards, settings, FX engine |
@@ -46,4 +39,4 @@ No AI inside the app — but Settings ships a copyable prompt that makes any AI 
 3. Every celebration is triggered by a real recall event.
 4. Numbers can go down. That's a feature.
 
-In local-only mode, data lives in `localStorage` — export a backup from **Data & settings** (one tap) regularly. In cloud mode every change syncs to your account automatically (the ⚓ chip in the top bar shows sync status); exports remain a good belt-and-braces backup.
+Data lives in `localStorage` — export a backup from **Data & settings** (one tap) regularly.
