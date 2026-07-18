@@ -20,6 +20,8 @@
     },
 
     render: function () {
+      if (window.Cloud && Cloud.gated()) { Cloud.renderGate(); return; }
+      document.body.classList.remove('gated');
       var v = App.route.v, html = '';
       if (v === 'home') html = viewHome();
       else if (v === 'subject') html = viewSubject();
@@ -977,5 +979,6 @@
   /* ─── Boot ───────────────────────────────────────────────────────────── */
   Store.load();
   document.documentElement.setAttribute('data-theme', Store.data().settings.theme || 'dark');
-  App.render();
+  if (window.Cloud) Cloud.init();   // decides gate vs app, then renders
+  else App.render();
 })();
