@@ -607,6 +607,10 @@ body.gated .topnav, body.gated .goal-chip, body.gated .streak-chip, body.gated .
   margin-top: 14px; padding: 10px 14px; border-radius: 10px; font-size: 13.5px; line-height: 1.5;
   color: var(--red); background: var(--red-soft); border: 1px solid var(--red-line);
 }
+.auth-note {
+  margin-top: 14px; padding: 10px 14px; border-radius: 10px; font-size: 13.5px; line-height: 1.5;
+  color: var(--green); background: var(--green-soft); border: 1px solid var(--green-line);
+}
 .auth-go { width: 100%; margin-top: 18px; justify-content: center; }
 .auth-go[disabled] { opacity: .6; cursor: default; }
 .auth-hint { font-size: 12px; color: var(--text3); margin-top: 12px; line-height: 1.55; }

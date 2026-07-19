@@ -7,7 +7,7 @@ Built on the two study techniques rated "high utility" across all of educational
 Runs in two modes:
 
 - **Local-only** (default, zero setup): everything lives on-device in `localStorage`.
-- **Cloud mode**: sign in with a username + password and everything saves online automatically — same account on any device. Setup is ~15 minutes with a free Supabase project: **[docs/CLOUD-SETUP.md](docs/CLOUD-SETUP.md)**.
+- **Cloud mode**: sign in with your email + password and everything saves online automatically — same account on any device, with email confirmation and password reset. Setup is ~15 minutes with a free Supabase project: **[docs/CLOUD-SETUP.md](docs/CLOUD-SETUP.md)**.
 
 ## Run it
 
@@ -23,7 +23,7 @@ It's a static app — no build step. Any of these work:
 | `index.html` `anchor.css` | App shell + design system (dark-first, light theme included) |
 | `js/fsrs.js` | FSRS-6 scheduler — retrievability, stability, exam-date compression |
 | `js/store.js` | Data layer — content/state separation, export/import/share, streaks |
-| `js/config.js` `js/cloud.js` | Cloud layer — username/password accounts + automatic online sync (Supabase) |
+| `js/config.js` `js/cloud.js` | Cloud layer — email/password accounts + automatic online sync (Supabase) |
 | `supabase-setup.sql` | One-time database setup script for cloud mode |
 | `js/seed.js` | Full HSC Business Studies syllabus (255 items / 443 facets) + demo chain |
 | `js/ui-main.js` | Harbour, subject boards (Mode A), session player, editors |

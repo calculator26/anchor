@@ -1,6 +1,6 @@
 # ⚓ Anchor — Cloud setup (accounts + online sync)
 
-This turns Anchor into a hosted web app: users sign in with a **username and
+This turns Anchor into a hosted web app: users sign in with their **email and
 password**, and everything (subjects, cards, chains, study history, settings)
 is **saved online automatically** — sign in on any device and it's all there.
 
@@ -32,14 +32,21 @@ That creates one table (`anchor_data` — each user's whole state as one JSON
 document) and locks it down with **row-level security**: every account can only
 ever read/write its own row, even though the site's API key is public.
 
-## Step 3 — Allow username-only accounts
-
-Anchor signs users up with a username, no email. Supabase's email-confirmation
-step must be off for that to work:
+## Step 3 — Auth settings (2 minutes)
 
 1. Dashboard → **Authentication** → **Sign In / Providers** (older dashboards:
-   **Providers**) → **Email**.
-2. Turn **OFF** “Confirm email”. Save.
+   **Providers**) → **Email** → make sure the Email provider is **enabled**.
+2. Dashboard → **Authentication** → **URL Configuration** → set **Site URL**
+   to your live app URL (e.g. `https://<user>.github.io/anchor/`). This makes
+   confirmation and password-reset links bring people back to the app.
+
+“Confirm email” can stay **on** (the default): new users get a confirmation
+link and are signed straight in when they click it — Anchor handles the whole
+flow. Turn it off only if you want sign-ups to skip the email step entirely.
+
+> ✉️ Supabase's built-in mailer only sends a small number of emails per hour
+> (fine for personal use). For a bigger audience, plug your own SMTP into
+> **Project Settings → Auth → SMTP**.
 
 ## Step 4 — Connect the app to your project
 
@@ -62,13 +69,11 @@ step must be off for that to work:
 
 (Already had Pages on? Just push — it redeploys automatically.)
 
-Optional polish: in Supabase → **Authentication** → **URL Configuration**, set
-the **Site URL** to your Pages URL.
-
 ## Step 6 — Try it
 
 1. Open the live URL → you'll see the sign-in screen.
-2. **Create account** → pick a username + password → you're in.
+2. **Create account** → email + password → click the confirmation link that
+   lands in your inbox → you're in.
 3. Add a card, then open the site on your phone and sign in — it's there.
 4. The **⚓ Synced** chip in the top bar shows sync status at all times.
 
@@ -86,9 +91,8 @@ the **Site URL** to your Pages URL.
   that already has Anchor data, that data becomes your account's cloud copy.
 - **Sign out clears the device** (data stays safe in the cloud) — good for
   shared/school computers.
-- **No password reset.** Accounts have no email behind them, so a forgotten
-  password can't be recovered — pick one you'll remember. (The export button
-  still works as a belt-and-braces backup.)
+- **Forgot password?** The link on the sign-in screen emails a reset link;
+  opening it brings you back to the app to set a new password.
 - **Free-tier note:** Supabase pauses projects after ~1 week with zero
   activity. Daily studying keeps it alive; if it ever pauses, restore it with
   one click in the dashboard.
@@ -97,7 +101,8 @@ the **Site URL** to your Pages URL.
 
 | Symptom | Fix |
 |---|---|
-| “Account created, but sign-in is blocked…” | Step 3 wasn't done — turn off *Confirm email*. |
+| Confirmation / reset email never arrives | Check spam. The built-in mailer is rate-limited to a few emails per hour — wait a bit and use “Forgot your password?” to resend. |
+| Email link opens the wrong page | Set **Site URL** (Step 3) to your live app URL. |
 | Sign-in screen never appears | `js/config.js` still has placeholders, or URL/key were pasted with typos. |
 | `⚠ Sync error` chip | Supabase project is paused (dashboard → Restore) or the table wasn't created (Step 2). |
 | Works locally, not on Pages | Hard-refresh (Ctrl+Shift+R) — the service worker may be serving an old version. |
