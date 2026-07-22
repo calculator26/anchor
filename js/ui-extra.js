@@ -173,6 +173,50 @@
   ACTIONS['modal-close'] = function () { Modal.close(); };
   ACTIONS['modal-ok'] = function () { var f = Modal._ok; Modal.close(); Modal._ok = null; if (f) f(); };
 
+  /* ─── Study mode: Reveal vs Text — shared by Harbour boards, Chain boards
+     and the session player. "Text mode" lets you produce the answer by typing
+     or dictation, then reveal to compare side-by-side. It's the same idea as
+     produce-before-reveal, stored in settings.typeFirst so one toggle drives
+     inline cards and full sessions alike. ─────────────────────────────────── */
+  window.textMode = function () { return !!Store.data().settings.typeFirst; };
+
+  window.studyModeToggle = function () {
+    var on = window.textMode();
+    return '<div class="mode-toggle" role="group" aria-label="Study mode">'
+      + '<button class="mode-opt' + (!on ? ' on' : '') + '" data-a="study-mode" data-m="0" title="Reveal, then say it aloud or on a whiteboard from memory">👁 Reveal</button>'
+      + '<button class="mode-opt' + (on ? ' on' : '') + '" data-a="study-mode" data-m="1" title="Type or dictate your answer, then reveal to compare">⌨ Text</button>'
+      + '</div>';
+  };
+
+  // The unrevealed state in text mode: a box you type or dictate into.
+  window.typeZoneHTML = function (key) {
+    return '<textarea class="type-zone inline" data-typed="' + key + '" placeholder="Type it — or dictate it — from memory. Then reveal to compare.">' + U.esc(App.getTyped(key)) + '</textarea>'
+      + '<div class="type-actions">'
+      + '<button class="btn primary" data-a="reveal" data-k="' + key + '">Reveal &amp; check</button>'
+      + '<button class="btn subtle" data-a="reveal" data-k="' + key + '" data-skip="1">Just show me</button>'
+      + '</div>';
+  };
+
+  // The revealed state in text mode: what you produced, above the real answer.
+  window.producedHTML = function (key) {
+    var t = App.getTyped(key);
+    if (!t || !t.trim()) return '';
+    return '<div class="ab-lbl">What you produced</div><div class="your-answer">' + U.esc(t) + '</div>'
+      + '<div class="ab-lbl acc">The answer</div>';
+  };
+
+  ACTIONS['study-mode'] = function (el) {
+    var on = el.getAttribute('data-m') === '1';
+    if (window.textMode() === on) return;
+    var ta = document.getElementById('sessTa');            // preserve a half-typed session answer
+    if (ta && App.sess) App.sess.typed = ta.value;
+    Store.data().settings.typeFirst = on;
+    Store.save();
+    App.render();
+    FX.toast(on ? '⌨ Text mode — type or dictate, then reveal to compare'
+                : '👁 Reveal mode — produce it in your head, then reveal', '', 2200);
+  };
+
   /* ══════════════════════════════════════════════════════════════════════
      CHAINS · Mode B — essays group chains (one chain per paragraph)
      ════════════════════════════════════════════════════════════════════ */
@@ -480,9 +524,11 @@
       + '<button class="tool" title="Edit keyword or sentence" data-a="link-edit" data-ch="' + ch.id + '" data-sid="' + sn.id + '">✎</button>'
       + '</div>';
     if (!revealed) {
-      html += '<div class="hidden-panel" data-a="reveal" data-k="' + key + '">👁 Reveal sentence — say it or whiteboard it first</div>';
+      if (window.textMode()) html += window.typeZoneHTML(key);
+      else html += '<div class="hidden-panel" data-a="reveal" data-k="' + key + '">👁 Reveal sentence — say it or whiteboard it first</div>';
     } else {
-      html += '<div class="c-text">' + U.esc(sn.text) + '</div>'
+      html += (window.textMode() ? window.producedHTML(key) : '')
+        + '<div class="c-text">' + U.esc(sn.text) + '</div>'
         + '<div class="after-row"><span class="grade-hint">Did you produce it?</span>'
         + '<button class="gbtn g1" data-a="grade" data-k="' + key + '" data-g="1">✗ Missed</button>'
         + '<button class="gbtn g2" data-a="grade" data-k="' + key + '" data-g="2">~ Shaky</button>'
@@ -572,7 +618,7 @@
       + '<button class="btn primary" data-a="recital" data-id="' + ch.id + '">Full recital</button></div>';
     html += '</div>';
 
-    html += '<div class="sec-head"><span>The links — test yourself, card by card</span></div>';
+    html += '<div class="sec-head"><span>The links — test yourself, card by card</span>' + window.studyModeToggle() + '</div>';
     ch.sentences.forEach(function (sn, i) { html += linkCardHTML(ch, i); });
     return html;
   };
@@ -1127,7 +1173,7 @@
       + '<div class="set-row"><span class="set-lbl">Retention target</span><select class="set-input wide" id="setRet">'
       + [0.8, 0.85, 0.9, 0.95].map(function (r) { return '<option value="' + r + '"' + (Math.abs(s.retention - r) < 0.001 ? ' selected' : '') + '>' + Math.round(r * 100) + '%</option>'; }).join('')
       + '</select></div>'
-      + '<div class="set-row"><span class="set-lbl">Produce-before-reveal (type first) in sessions</span><button class="switch' + (s.typeFirst ? ' on' : '') + '" data-a="set-typefirst" role="switch" aria-checked="' + s.typeFirst + '"></button></div>'
+      + '<div class="set-row"><span class="set-lbl">Text mode — type or dictate your answer, then reveal to compare (also toggleable on every board)</span><button class="switch' + (s.typeFirst ? ' on' : '') + '" data-a="set-typefirst" role="switch" aria-checked="' + s.typeFirst + '"></button></div>'
       + '<div class="set-row"><span class="set-lbl">Theme</span><button class="btn" data-a="theme">Toggle light / dark</button></div>'
       + '<div class="m-actions" style="justify-content:flex-start"><button class="btn primary" data-a="set-save">Save settings</button></div></div>';
 

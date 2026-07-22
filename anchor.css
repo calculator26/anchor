@@ -565,6 +565,27 @@ button.kchip:hover { transform: translateY(-2px); }
 .banner-anchored .ba-sub { font-size: 13.5px; color: var(--text2); margin-top: 2px; }
 @keyframes bannerIn { 0% { opacity: 0; transform: translateX(-50%) scale(.85); } 10% { opacity: 1; transform: translateX(-50%) scale(1.02); } 14% { transform: translateX(-50%) scale(1); } 82% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) translateY(-14px) scale(.98); } }
 
+/* ─── Study-mode toggle (Reveal vs Text) + inline type-to-recall ────────── */
+.mode-toggle {
+  display: inline-flex; background: var(--card2); border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px; gap: 2px; text-transform: none; letter-spacing: 0;
+}
+.mode-opt {
+  font-size: 12.5px; font-weight: 700; color: var(--text2);
+  padding: 6px 14px; border-radius: 999px; transition: all .13s; white-space: nowrap;
+}
+.mode-opt:hover { color: var(--text); }
+.mode-opt.on { background: var(--accent); color: var(--ink); box-shadow: 0 2px 8px rgba(45,212,191,.25); }
+.board-tools { display: flex; align-items: center; gap: 10px; margin: 2px 4px 16px; }
+.bt-lbl { font-size: 12.5px; font-weight: 700; color: var(--text3); }
+.board-tools .mode-toggle { margin-left: auto; }
+.sec-head .mode-toggle { margin-left: auto; }
+.type-zone.inline { min-height: 84px; font-size: 15px; }
+.type-actions { display: flex; gap: 9px; margin-top: 10px; flex-wrap: wrap; }
+.btn.subtle { background: transparent; border-color: transparent; color: var(--text3); }
+.btn.subtle:hover { color: var(--text2); border-color: var(--line); background: var(--card2); }
+.sess-mode { display: flex; justify-content: center; margin: 2px 0 18px; }
+
 /* ─── Cloud sync chip & auth gate ──────────────────────────────────────── */
 .sync-chip {
   display: flex; align-items: center; gap: 5px;

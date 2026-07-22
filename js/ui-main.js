@@ -6,7 +6,8 @@
 (function () {
   'use strict';
 
-  var REV = {};   // revealed cards in browse mode (not persisted)
+  var REV = {};     // revealed cards in browse mode (not persisted)
+  var TYPED = {};   // in-progress typed/dictated answers for text mode (not persisted)
 
   var App = window.App = {
     route: { v: 'home' },
@@ -15,6 +16,7 @@
     go: function (route) {
       App.route = route;
       REV = {};
+      TYPED = {};
       window.scrollTo(0, 0);
       App.render();
     },
@@ -60,6 +62,8 @@
 
     // let other modules (chain link cards) check browse-reveal state
     isRev: function (k) { return !!REV[k]; },
+    getTyped: function (k) { return TYPED[k] || ''; },
+    setTyped: function (k, v) { TYPED[k] = v; },
 
     startSession: function (keys, origin, label) {
       if (!keys.length) { FX.toast('Nothing to study there yet.', ''); return; }
@@ -302,6 +306,8 @@
     }
     html += '</div>';
 
+    html += '<div class="board-tools"><span class="bt-lbl">Study style</span>' + window.studyModeToggle() + '</div>';
+
     // cards, clustered under their (optional) group headings
     var shown = 0, rated = 0, verifiedN = 0, num = 1, lastGroup = '~none~';
     tab.cards.forEach(function (card) {
@@ -403,10 +409,15 @@
     html += '<div class="cell cell-content">'
       + '<div class="tools"><button class="tool" title="Edit this card" data-a="card-edit" data-id="' + card.id + '" data-subj="' + subj.id + '">✎</button></div>';
     if (!revealed) {
-      var revLbl = facet === 'def' ? 'definition' : facet === 'key' ? 'key facts' : 'answer';
-      html += '<div class="hidden-panel" data-a="reveal" data-k="' + key + '">👁 Reveal ' + revLbl + ' — say it or whiteboard it first</div>';
+      if (window.textMode()) {
+        html += window.typeZoneHTML(key);
+      } else {
+        var revLbl = facet === 'def' ? 'definition' : facet === 'key' ? 'key facts' : 'answer';
+        html += '<div class="hidden-panel" data-a="reveal" data-k="' + key + '">👁 Reveal ' + revLbl + ' — say it or whiteboard it first</div>';
+      }
     } else {
-      html += '<div class="c-text">' + U.esc(Store.facetText(card, facet)) + '</div>'
+      html += (window.textMode() ? window.producedHTML(key) : '')
+        + '<div class="c-text">' + U.esc(Store.facetText(card, facet)) + '</div>'
         + (card.note ? '<div class="note-box"><span class="note-lbl">Note</span><span>' + U.esc(card.note) + '</span></div>' : '')
         + '<div class="after-row"><span class="grade-hint">Did you produce it?</span>'
         + '<button class="gbtn g1" data-a="grade" data-k="' + key + '" data-g="1">✗ Missed</button>'
@@ -454,7 +465,12 @@
     REV = {};
     App.render();
   };
-  ACTIONS['reveal'] = function (el) { REV[el.getAttribute('data-k')] = true; App.render(); };
+  ACTIONS['reveal'] = function (el) {
+    var k = el.getAttribute('data-k');
+    if (el.getAttribute('data-skip')) TYPED[k] = '';   // "just show me" — skip the comparison
+    REV[k] = true;
+    App.render();
+  };
   ACTIONS['hide'] = function (el) { REV[el.getAttribute('data-k')] = false; App.render(); };
 
   ACTIONS['conf'] = function (el) {
@@ -476,6 +492,7 @@
       if (res.toGo === 1) FX.toast('One more successful recall to anchor it ⚓', '', 2200);
     }
     REV[k] = false;
+    TYPED[k] = '';
     App.afterGradeCommon(res);
     setTimeout(function () { App.render(); App.checkCompletions(k); }, res.wentGreen ? 420 : 60);
   };
@@ -582,6 +599,7 @@
         + '<div class="sc-term">' + U.esc(fb.front) + '</div>';
 
       if (!s.revealed) {
+        html += '<div class="sess-mode">' + window.studyModeToggle() + '</div>';
         if (typeFirst) {
           html += '<textarea class="type-zone" id="sessTa" placeholder="Produce it from memory — type it, say it aloud, or scribble it on a whiteboard. Then reveal to check.">' + U.esc(s.typed) + '</textarea>'
             + '<div class="type-hint">Ctrl+Enter to reveal · typing, saying it aloud or working it on a mini-whiteboard all count — producing first is what makes it stick</div>'
@@ -974,6 +992,10 @@
       nl.focus();
       nl.onkeydown = function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); ACTIONS['nl-check'](); } };
     }
+    // keep inline text-mode answers synced so a re-render never wipes them
+    document.querySelectorAll('.type-zone.inline').forEach(function (t) {
+      t.oninput = function () { TYPED[t.getAttribute('data-typed')] = t.value; };
+    });
   }
 
   /* ─── Boot ───────────────────────────────────────────────────────────── */
