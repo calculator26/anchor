@@ -370,8 +370,28 @@
   function splitSentences(text) {
     var clean = text.replace(/\s+/g, ' ').trim();
     if (!clean) return [];
-    var parts = clean.match(/[^.!?]+[.!?]+(?:['")\]]+)?|[^.!?]+$/g) || [clean];
-    return parts.map(function (s) { return s.trim(); }).filter(function (s) { return s.length > 1; });
+    var out = [], buf = '', inQuote = false;
+    for (var i = 0; i < clean.length; i++) {
+      var ch = clean[i];
+      buf += ch;
+      // Track double-quote state only (straight " and curly “ ”). Single
+      // quotes/apostrophes are ignored so contractions (don't, business's)
+      // never flip it. A .!? inside an open quote does NOT end the sentence.
+      if (ch === '"') inQuote = !inQuote;
+      else if (ch === '“') inQuote = true;
+      else if (ch === '”') inQuote = false;
+      else if ((ch === '.' || ch === '!' || ch === '?') && !inQuote) {
+        // pull trailing terminators / closing punctuation into this sentence
+        while (i + 1 < clean.length && /[.!?)\]”]/.test(clean[i + 1])) {
+          i++; buf += clean[i];
+          if (clean[i] === '”') inQuote = false;
+        }
+        out.push(buf.trim());
+        buf = '';
+      }
+    }
+    if (buf.trim()) out.push(buf.trim());
+    return out.filter(function (s) { return s.length > 1; });
   }
 
   V.chainBuild = function () {
