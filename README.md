@@ -26,11 +26,19 @@ It's a static app — no build step. Any of these work:
 | `js/config.js` `js/cloud.js` | Cloud layer — email/password accounts + automatic online sync (Supabase) |
 | `supabase-setup.sql` | One-time database setup script for cloud mode |
 | `js/seed.js` | Full HSC Business Studies syllabus (255 items / 443 facets) + demo chain |
-| `js/ui-main.js` | Harbour, subject boards (Mode A), session player, editors |
-| `js/ui-extra.js` | Chains (Mode B), stats dashboards, settings, FX engine |
+| `js/ui-main.js` | Router (URL hash — back button works), sidebar library, Harbour, subject boards (Mode A), session player, editors |
+| `js/ui-extra.js` | Icons, menus, drag-to-reorder, folders, Chains → essays → paragraphs (Mode B), stats, settings, FX engine |
 | `manifest.webmanifest` `sw.js` `icons/` | PWA layer |
 | `docs/RESEARCH.md` | The science foundation — every feature cited to the literature |
 | `docs/PLAN.md` | Product plan, UX flows, data architecture, roadmap |
+
+## Organising
+
+- **Folders** — group subjects on the Harbour, and essays/chains on the Chains page (e.g. “English”, “SOR essays”). Deleting a folder never deletes what's inside.
+- **Drag to reorder** — subjects, folders, tabs, cards, essays, paragraphs and chain links. Mouse drags from anywhere on a card; on touch, drag the ⋮⋮ grip. Drop onto a folder (or a folder in the sidebar) to file it; drop a card under another heading to regroup it; drop a standalone chain onto an essay to make it a paragraph.
+- **Move to…** — every ⋯ menu has a tap-friendly alternative to dragging.
+- **Essays have their own page** — leaving a paragraph takes you back to its essay, and the stepper hops between paragraphs.
+- Link an essay to a subject and it also appears on that subject's board under **Essays & chains**.
 
 ## The two modes
 

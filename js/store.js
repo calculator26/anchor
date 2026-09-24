@@ -18,6 +18,7 @@
   var GREEN_CRITERION = 3;
 
   var S = blank();
+  var IDX = null;   // cardId -> {subject, tab, card}; rebuilt lazily, dropped on every save
 
   function blank() {
     return {
@@ -25,7 +26,8 @@
       settings: { theme: 'dark', dailyGoal: 20, retention: 0.9, typeFirst: true },
       subjects: [],
       essays: [],   // {id, title, subjectId} — an essay groups several chains (one per paragraph)
-      chains: [],   // {id, subjectId, essayId, title, sentences:[{id,text,kw}], created}
+      chains: [],   // {id, subjectId, essayId, folderId, title, sentences:[{id,text,kw}], created}
+      folders: [],  // {id, name, space:'subjects'|'chains'} — subjects/essays/loose chains carry folderId
       state: {},    // facetKey -> {conf, srs, hist:[{t,g,r,c}], got, miss}
       act: {},      // 'YYYY-MM-DD' -> {n, got, miss, greens, goalHit}
       meta: { created: null, milestones: [] }
@@ -36,6 +38,7 @@
   var quiet = false; // true while applying a cloud pull, so we don't push it straight back
 
   function save() {
+    IDX = null;
     try { localStorage.setItem(KEY, JSON.stringify(S)); }
     catch (e) { console.error('Anchor: save failed', e); }
     if (!quiet && window.Cloud) window.Cloud.onLocalSave();
@@ -44,6 +47,7 @@
   // Swap in a full state object (from the cloud) without triggering a push.
   function replaceAll(parsed) {
     if (parsed && parsed.v === 1) parsed = migrateV1(parsed);
+    IDX = null;
     S = withDefaults(parsed && parsed.v === 2 ? parsed : blank());
     if (!S.meta.created) S.meta.created = todayISO();
     quiet = true; save(); quiet = false;
@@ -74,6 +78,7 @@
     d.subjects = d.subjects || [];
     d.essays = d.essays || [];
     d.chains = d.chains || [];
+    d.folders = d.folders || [];
     d.state = d.state || {};
     d.act = d.act || {};
     d.meta = d.meta || { created: todayISO(), milestones: [] };
@@ -133,10 +138,23 @@
     return S.state[k];
   }
 
+  function cardIndex() {
+    if (IDX) return IDX;
+    IDX = {};
+    S.subjects.forEach(function (subj) {
+      subj.tabs.forEach(function (tab) {
+        tab.cards.forEach(function (card) { IDX[card.id] = { subject: subj, tab: tab, card: card }; });
+      });
+    });
+    return IDX;
+  }
+  function invalidate() { IDX = null; }
+
   /* --- content lookups ------------------------------------------------------------ */
   function subjectById(id) { return S.subjects.find(function (s) { return s.id === id; }) || null; }
   function chainById(id) { return S.chains.find(function (c) { return c.id === id; }) || null; }
   function essayById(id) { return S.essays.find(function (e) { return e.id === id; }) || null; }
+  function folderById(id) { return S.folders.find(function (f) { return f.id === id; }) || null; }
 
   // The text a facet studies. Tolerant of style switches: something sensible
   // always renders even if a card was written under the other style.
@@ -170,18 +188,8 @@
   function resolveFacet(key) {
     var p = key.split(':');
     if (p[0] === 'f') {
-      for (var si = 0; si < S.subjects.length; si++) {
-        var subj = S.subjects[si];
-        for (var ti = 0; ti < subj.tabs.length; ti++) {
-          var tab = subj.tabs[ti];
-          for (var ci = 0; ci < tab.cards.length; ci++) {
-            if (tab.cards[ci].id === p[1]) {
-              return { kind: 'item', subject: subj, tab: tab, card: tab.cards[ci], mode: p[2] };
-            }
-          }
-        }
-      }
-      return null;
+      var hit = cardIndex()[p[1]];
+      return hit ? { kind: 'item', subject: hit.subject, tab: hit.tab, card: hit.card, mode: p[2] } : null;
     }
     if (p[0] === 'c') {
       var ch = chainById(p[1]);
@@ -383,6 +391,49 @@
     save();
   }
 
+  /* --- folders & ordering ------------------------------------------------------------------
+     Folders are one level deep and live in a "space": 'subjects' (the Harbour)
+     or 'chains' (essays + standalone chains). Items point at a folder with
+     folderId; a missing/unknown folderId just means "not in a folder".     */
+  function addFolder(name, space) {
+    var f = { id: uid('fd'), name: name, space: space === 'chains' ? 'chains' : 'subjects' };
+    S.folders.push(f); save(); return f;
+  }
+  function deleteFolder(id) {
+    // Deleting a folder never deletes what's inside — contents become unfiled.
+    [S.subjects, S.essays, S.chains].forEach(function (arr) {
+      arr.forEach(function (x) { if (x.folderId === id) x.folderId = null; });
+    });
+    S.folders = S.folders.filter(function (f) { return f.id !== id; });
+    save();
+  }
+  function listFor(kind) {
+    return kind === 'subject' ? S.subjects : kind === 'essay' ? S.essays : kind === 'chain' ? S.chains
+      : kind === 'folder' ? S.folders : null;
+  }
+  function itemById(kind, id) {
+    var arr = listFor(kind);
+    return arr ? (arr.find(function (x) { return x.id === id; }) || null) : null;
+  }
+  function moveToFolder(kind, id, folderId) {
+    var it = itemById(kind, id);
+    if (!it) return;
+    it.folderId = folderId || null;
+    save();
+  }
+  // Re-sequence the items named in `ids` (in that order) into the slots they
+  // already occupy in `arr`; everything else keeps its position.
+  function reorderSubset(arr, ids) {
+    var pos = [], picked = {};
+    arr.forEach(function (x, i) { if (ids.indexOf(x.id) >= 0) { pos.push(i); picked[x.id] = x; } });
+    var seq = ids.filter(function (id) { return picked[id]; });
+    if (seq.length !== pos.length) return false;
+    pos.forEach(function (p, j) { arr[p] = picked[seq[j]]; });
+    return true;
+  }
+  function reorder(kind, ids) { var arr = listFor(kind); if (arr && reorderSubset(arr, ids)) save(); }
+  function reorderIn(arr, ids) { if (reorderSubset(arr, ids)) save(); }
+
   /* --- seed ----------------------------------------------------------------------------------- */
   function loadSeed() {
     if (!window.ANCHOR_SEED) return null;
@@ -498,7 +549,10 @@
     data: function () { return S; },
     save: save, load: load, replaceAll: replaceAll, clearLocal: clearLocal,
     uid: uid, todayISO: todayISO,
-    subjectById: subjectById, chainById: chainById, essayById: essayById,
+    subjectById: subjectById, chainById: chainById, essayById: essayById, folderById: folderById,
+    itemById: itemById, invalidate: invalidate,
+    addFolder: addFolder, deleteFolder: deleteFolder, moveToFolder: moveToFolder,
+    reorder: reorder, reorderIn: reorderIn,
     cardModes: cardModes, facetText: facetText,
     subjectFacets: subjectFacets, chainFacets: chainFacets, resolveFacet: resolveFacet,
     facetState: facetState, applyGrade: applyGrade, setConf: setConf,

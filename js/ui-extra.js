@@ -1,11 +1,46 @@
 /* ============================================================================
-   Anchor · ui-extra.js — utilities, FX engine, modals, Chains + Essays,
-   Stats, Data & settings. Loads before ui-main.js.
+   Anchor · ui-extra.js — utilities, icons, menus, drag-to-reorder, FX,
+   modals, Chains (folders → essays → paragraph chains), Stats, Settings.
+   Loads before ui-main.js.
    ========================================================================== */
 (function () {
   'use strict';
 
   window.ACTIONS = window.ACTIONS || {};
+
+  /* ─── Icons (inline SVG, stroke = currentColor) ──────────────────────── */
+  var ICONS = {
+    home: '<path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9v11h13V9"/><path d="M10 20v-5.5h4V20"/>',
+    chain: '<path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 1 0-5.66-5.66l-1.2 1.2"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 1 0 5.66 5.66l1.2-1.2"/>',
+    stats: '<path d="M4 20V11"/><path d="M10 20V5"/><path d="M16 20v-8"/><path d="M3 20h18"/>',
+    settings: '<path d="M4 7h9"/><path d="M17 7h3"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/>',
+    folder: '<path d="M3.5 7.5a2 2 0 0 1 2-2h3.8l2 2h7.2a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>',
+    folderPlus: '<path d="M3.5 7.5a2 2 0 0 1 2-2h3.8l2 2h7.2a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><path d="M12 11v5M9.5 13.5h5"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    dots: '<circle cx="5.5" cy="12" r="1.4" class="fill"/><circle cx="12" cy="12" r="1.4" class="fill"/><circle cx="18.5" cy="12" r="1.4" class="fill"/>',
+    grip: '<circle cx="9" cy="6" r="1.3" class="fill"/><circle cx="15" cy="6" r="1.3" class="fill"/><circle cx="9" cy="12" r="1.3" class="fill"/><circle cx="15" cy="12" r="1.3" class="fill"/><circle cx="9" cy="18" r="1.3" class="fill"/><circle cx="15" cy="18" r="1.3" class="fill"/>',
+    chevR: '<path d="m9 5.5 6.5 6.5L9 18.5"/>',
+    chevL: '<path d="M15 5.5 8.5 12l6.5 6.5"/>',
+    chevD: '<path d="m5.5 9 6.5 6.5L18.5 9"/>',
+    play: '<path d="M7.5 5.2v13.6a.6.6 0 0 0 .9.5l11-6.8a.6.6 0 0 0 0-1l-11-6.8a.6.6 0 0 0-.9.5z" class="fill"/>',
+    bell: '<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+    doc: '<path d="M14 3.5H7.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8z"/><path d="M14 3.5V8h4.5"/><path d="M9 13h6M9 16.5h4"/>',
+    book: '<path d="M5 5.5a2 2 0 0 1 2-2h12v15H7a2 2 0 0 0-2 2z"/><path d="M5 20.5v-15"/><path d="M9 8h6"/>',
+    edit: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+    trash: '<path d="M4.5 7h15"/><path d="M9.5 7V4.5h5V7"/><path d="M6.5 7l1 13h9l1-13"/>',
+    share: '<path d="M12 15V3.5"/><path d="m7.5 8 4.5-4.5L16.5 8"/><path d="M5 13v6.5h14V13"/>',
+    upload: '<path d="M12 15V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M4.5 15.5v4h15v-4"/>',
+    download: '<path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4.5 15.5v4h15v-4"/>',
+    move: '<path d="M3.5 7.5a2 2 0 0 1 2-2h3.8l2 2h7.2a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><path d="M10 13.5h5.5M13 11l2.5 2.5L13 16"/>',
+    moon: '<path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/>',
+    target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8" class="fill"/>',
+    link: '<path d="M4 12h16"/><path d="m14 6 6 6-6 6"/>',
+    order: '<path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
+    write: '<path d="M4 20h16"/><path d="M6 16l9.5-9.5a2 2 0 0 1 3 3L9 19H6z"/>',
+    x: '<path d="M6 6l12 12M18 6 6 18"/>',
+    check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    list: '<path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.8" cy="6.5" r="1" class="fill"/><circle cx="4.8" cy="12" r="1" class="fill"/><circle cx="4.8" cy="17.5" r="1" class="fill"/>'
+  };
 
   /* ─── U · tiny utilities ─────────────────────────────────────────────── */
   var U = window.U = {
@@ -14,7 +49,11 @@
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
     },
+    icon: function (name, cls) {
+      return '<svg class="ic' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
+    },
     pct: function (n, d) { return d ? Math.round(n / d * 100) : 0; },
+    plural: function (n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); },
     fmtDate: function (iso) {
       if (!iso) return '';
       var m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -57,7 +96,205 @@
     },
     modeLabel: function (mode) {
       return mode === 'def' ? 'Definition' : mode === 'key' ? 'Key facts' : 'Card';
+    },
+    // Progress ring (anchored share) — used by subject + essay cards
+    ring: function (pct, size) {
+      var C = 138.23; // 2πr, r = 22
+      return '<svg class="ring" viewBox="0 0 52 52" style="width:' + (size || 52) + 'px;height:' + (size || 52) + 'px">'
+        + '<circle class="rt" cx="26" cy="26" r="22"/>'
+        + '<circle class="rf" cx="26" cy="26" r="22" stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - pct / 100)).toFixed(1) + '"/>'
+        + '<text x="26" y="30.5" text-anchor="middle">' + pct + '<tspan>%</tspan></text></svg>';
+    },
+    // Breadcrumbs: [[label, hash], …, [current]]
+    crumbs: function (parts) {
+      return '<nav class="crumbs" aria-label="Breadcrumb">' + parts.map(function (p, i) {
+        var last = i === parts.length - 1;
+        if (last || !p[1]) return '<span class="cr-cur">' + U.esc(p[0]) + '</span>';
+        return '<a class="cr-link" href="' + p[1] + '">' + (i === 0 ? U.icon('chevL', 'sm') : '') + U.esc(p[0]) + '</a><span class="cr-sep">/</span>';
+      }).join('') + '</nav>';
+    },
+    // Segmented progress bar: [[count, cssColor], …] out of total
+    segbar: function (segs, total) {
+      return '<div class="segbar">' + segs.map(function (s) {
+        return s[0] ? '<span style="width:' + (s[0] / Math.max(1, total) * 100) + '%;background:' + s[1] + '"></span>' : '';
+      }).join('') + '</div>';
     }
+  };
+
+  /* ─── Per-device UI prefs (collapsed folders etc.) — never synced ─────── */
+  var Prefs = window.Prefs = (function () {
+    var KEY = 'anchor_ui', P = {};
+    try { P = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { P = {}; }
+    P.collapsed = P.collapsed || {};
+    return {
+      get: function (k) { return P[k]; },
+      set: function (k, v) { P[k] = v; try { localStorage.setItem(KEY, JSON.stringify(P)); } catch (e) {} },
+      collapsed: function (id) { return !!P.collapsed[id]; },
+      toggle: function (id) {
+        P.collapsed[id] = !P.collapsed[id];
+        try { localStorage.setItem(KEY, JSON.stringify(P)); } catch (e) {}
+      }
+    };
+  })();
+
+  /* ─── Menu · small popover of actions anchored to a button ───────────── */
+  var Menu = window.Menu = {
+    el: null,
+    open: function (anchor, html) {
+      Menu.close();
+      var m = document.createElement('div');
+      m.className = 'menu';
+      m.setAttribute('role', 'menu');
+      m.innerHTML = html;
+      document.body.appendChild(m);
+      var r = anchor.getBoundingClientRect();
+      var w = m.offsetWidth, h = m.offsetHeight;
+      var left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8));
+      var top = r.bottom + 6;
+      if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+      m.style.left = left + 'px';
+      m.style.top = top + 'px';
+      Menu.el = m;
+    },
+    close: function () { if (Menu.el) { Menu.el.remove(); Menu.el = null; } },
+    item: function (action, label, icon, attrs, danger) {
+      return '<button class="mi' + (danger ? ' danger' : '') + '" role="menuitem" data-a="' + action + '"' + (attrs || '') + '>'
+        + (icon ? U.icon(icon) : '') + '<span>' + label + '</span></button>';
+    },
+    sep: function () { return '<div class="msep"></div>'; }
+  };
+  window.addEventListener('resize', function () { Menu.close(); });
+  window.addEventListener('scroll', function () { Menu.close(); }, true);
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') Menu.close(); });
+
+  /* ─── Sortable · drag to reorder (and drop into folders) ─────────────────
+     Markup contract:
+       item       [data-sort="kind"][data-id]             something you can drag
+       list       [data-sort-list="kind"]                  a container of items
+       target     [data-drop="kind other"][data-…]         drop onto (e.g. a folder)
+     Mouse drags from anywhere on an item; touch/pen drags from its .grip.
+     Handlers: Sortable.on(kind, fn({id, ids, list, target})).                 */
+  var Sortable = window.Sortable = (function () {
+    var D = null, handlers = {}, swallowClick = false;
+
+    function itemsOf(list, kind) {
+      return Array.prototype.filter.call(list.children, function (c) { return c.getAttribute('data-sort') === kind; });
+    }
+    function start(ev) {
+      var it = D.item, r = it.getBoundingClientRect();
+      D.started = true;
+      D.dx = D.sx - r.left; D.dy = D.sy - r.top;
+      D.home = { parent: it.parentNode, next: it.nextSibling };
+      var g = it.cloneNode(true);
+      g.classList.add('drag-ghost');
+      g.style.width = r.width + 'px';
+      g.style.height = r.height + 'px';
+      document.body.appendChild(g);
+      D.ghost = g;
+      it.classList.add('drag-src');
+      document.body.classList.add('is-dragging', 'drag-' + D.kind);
+      Menu.close();
+      move(ev);
+    }
+    function move(ev) {
+      D.ghost.style.transform = 'translate(' + (ev.clientX - D.dx) + 'px,' + (ev.clientY - D.dy) + 'px)';
+      var under = document.elementFromPoint(ev.clientX, ev.clientY);
+      // drop targets (folders, essays…)
+      var tgt = under && under.closest('[data-drop]');
+      if (tgt && (' ' + tgt.getAttribute('data-drop') + ' ').indexOf(' ' + D.kind + ' ') < 0) tgt = null;
+      if (tgt !== D.target) {
+        if (D.target) D.target.classList.remove('drop-on');
+        D.target = tgt;
+        if (tgt) tgt.classList.add('drop-on');
+      }
+      if (tgt) return;
+      var list = under && under.closest('[data-sort-list="' + D.kind + '"]');
+      if (!list) return;
+      var sibs = itemsOf(list, D.kind).filter(function (c) { return c !== D.item; });
+      var axis = list.getAttribute('data-axis') || 'y';
+      var before = null;
+      for (var i = 0; i < sibs.length; i++) {
+        var r = sibs[i].getBoundingClientRect();
+        if (axis === 'y') {
+          if (ev.clientY < r.top + r.height / 2) { before = sibs[i]; break; }
+        } else { // grid / wrapping rows
+          if (ev.clientY < r.top) { before = sibs[i]; break; }
+          if (ev.clientY <= r.bottom && ev.clientX < r.left + r.width / 2) { before = sibs[i]; break; }
+        }
+      }
+      if (before) { if (D.item.nextSibling !== before) list.insertBefore(D.item, before); }
+      else {
+        var last = sibs[sibs.length - 1];
+        var anchor = last ? last.nextSibling : list.firstChild;
+        if (!(D.item.parentNode === list && (!last || D.item.previousSibling === last))) list.insertBefore(D.item, anchor);
+      }
+      // gentle auto-scroll near the viewport edges
+      var edge = 70;
+      if (ev.clientY < edge) window.scrollBy(0, -12);
+      else if (ev.clientY > window.innerHeight - edge) window.scrollBy(0, 12);
+    }
+    function finish(cancel) {
+      var d = D; D = null;
+      document.body.classList.remove('is-dragging', 'drag-' + d.kind);
+      if (d.ghost) d.ghost.remove();
+      d.item.classList.remove('drag-src');
+      if (d.target) d.target.classList.remove('drop-on');
+      if (cancel) {
+        d.home.parent.insertBefore(d.item, d.home.next);
+        return;
+      }
+      swallowClick = true;
+      setTimeout(function () { swallowClick = false; }, 60);
+      var fn = handlers[d.kind];
+      if (!fn) return;
+      var list = d.item.parentNode;
+      var info = { id: d.id, item: d.item, target: d.target || null, list: null, ids: [] };
+      if (!d.target && list && list.getAttribute && list.getAttribute('data-sort-list') === d.kind) {
+        info.list = list;
+        info.ids = itemsOf(list, d.kind).map(function (c) { return c.getAttribute('data-id'); });
+      }
+      if (d.target) d.home.parent.insertBefore(d.item, d.home.next);
+      fn(info);
+    }
+
+    document.addEventListener('pointerdown', function (ev) {
+      if (ev.button !== 0 || D) return;
+      var item = ev.target.closest && ev.target.closest('[data-sort]');
+      if (!item) return;
+      var grip = ev.target.closest('.grip');
+      if (ev.pointerType !== 'mouse' && !grip) return;
+      if (ev.target.closest('input, textarea, select, .menu, [data-nodrag]')) return;
+      var inner = ev.target.closest('[data-a]');
+      if (inner && inner !== item && item.contains(inner) && !grip) return;   // e.g. ⋯ buttons
+      D = { item: item, kind: item.getAttribute('data-sort'), id: item.getAttribute('data-id'),
+            sx: ev.clientX, sy: ev.clientY, started: false, grip: !!grip, target: null };
+      if (grip) ev.preventDefault();
+    });
+    document.addEventListener('pointermove', function (ev) {
+      if (!D) return;
+      if (!D.started) {
+        var dist = Math.abs(ev.clientX - D.sx) + Math.abs(ev.clientY - D.sy);
+        if (dist < (D.grip ? 4 : 8)) return;
+        start(ev);
+      } else move(ev);
+      ev.preventDefault();
+    }, { passive: false });
+    document.addEventListener('pointerup', function () { if (D) { if (D.started) finish(false); else D = null; } });
+    document.addEventListener('pointercancel', function () { if (D) { if (D.started) finish(true); else D = null; } });
+    document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && D && D.started) finish(true); });
+    // a completed drag must not also count as a click on the item
+    document.addEventListener('click', function (ev) {
+      if (swallowClick) { ev.stopPropagation(); ev.preventDefault(); swallowClick = false; }
+    }, true);
+
+    return { on: function (kind, fn) { handlers[kind] = fn; } };
+  })();
+
+  // The grip every sortable item shows (touch drags start here)
+  U.grip = function () { return '<span class="grip" title="Drag to reorder" aria-hidden="true">' + U.icon('grip') + '</span>'; };
+
+  U.backLink = function (hash, label) {
+    return '<a class="backlink" href="' + hash + '">' + U.icon('chevL', 'sm') + U.esc(label) + '</a>';
   };
 
   /* ─── FX · celebration engine (all recall-triggered, all brief) ──────── */
@@ -218,7 +455,190 @@
   };
 
   /* ══════════════════════════════════════════════════════════════════════
-     CHAINS · Mode B — essays group chains (one chain per paragraph)
+     FOLDERS — shared by the Harbour (subjects) and Chains (essays + chains)
+     ════════════════════════════════════════════════════════════════════ */
+  function spaceOf(kind) { return kind === 'subject' ? 'subjects' : 'chains'; }
+  function foldersIn(space) { return Store.data().folders.filter(function (f) { return f.space === space; }); }
+  function validFolder(id, space) { var f = id ? Store.folderById(id) : null; return f && f.space === space ? f : null; }
+  window.foldersIn = foldersIn;
+  window.validFolder = validFolder;
+
+  // A collapsible folder section. `body` is the inner grids; `count` shows in the header.
+  U.folderSec = function (f, sortKind, dropKinds, body, count, emptyHint) {
+    var closed = Prefs.collapsed(f.id);
+    return '<section class="fsec' + (closed ? ' closed' : '') + '" data-sort="' + sortKind + '" data-id="' + f.id + '" data-handle=".fsec-head">'
+      + '<div class="fsec-head" data-drop="' + dropKinds + '" data-folder="' + f.id + '">'
+      + U.grip()
+      + '<button class="fsec-toggle" data-a="folder-toggle" data-id="' + f.id + '" aria-expanded="' + !closed + '">'
+      + U.icon('chevD', 'chev') + U.icon('folder', 'fold') + '<span class="fsec-name">' + U.esc(f.name) + '</span>'
+      + '<span class="fsec-count">' + count + '</span></button>'
+      + '<button class="kebab" data-a="folder-menu" data-id="' + f.id + '" title="Folder options">' + U.icon('dots') + '</button>'
+      + '</div>'
+      + '<div class="fsec-body">' + body + (count ? '' : '<div class="fsec-empty">' + emptyHint + '</div>') + '</div>'
+      + '</section>';
+  };
+
+  ACTIONS['folder-toggle'] = function (el) { Prefs.toggle(el.getAttribute('data-id')); App.render(); };
+
+  ACTIONS['folder-new'] = function (el) {
+    var space = el.getAttribute('data-space') || 'subjects';
+    Modal.open('<div class="m-title">New folder</div>'
+      + '<div class="m-sub">' + (space === 'subjects'
+        ? 'Group subjects together — e.g. “Year 12 HSC”, “English”, “Revision for trials”.'
+        : 'Group essays and chains together — e.g. “English Advanced”, “SOR essays”, “Quotes”.') + '</div>'
+      + '<div class="m-row"><label class="m-lbl">Folder name</label><input class="m-input" id="mFolder" maxlength="60" placeholder="e.g. English"></div>'
+      + '<div class="m-actions"><button class="btn" data-a="modal-close">Cancel</button>'
+      + '<button class="btn primary" data-a="folder-new-ok" data-space="' + space + '">Create folder</button></div>',
+      function (root) { enterSubmits(root, 'folder-new-ok'); });
+  };
+  ACTIONS['folder-new-ok'] = function (el) {
+    var name = document.getElementById('mFolder').value.trim();
+    if (!name) { FX.toast('Give the folder a name.', 'amber'); return; }
+    var f = Store.addFolder(name, el.getAttribute('data-space'));
+    Modal.close();
+    FX.toast('Folder “' + U.esc(f.name) + '” created — drag things into it', 'green');
+    App.render();
+  };
+  ACTIONS['folder-menu'] = function (el) {
+    var id = el.getAttribute('data-id');
+    Menu.open(el, Menu.item('folder-rename', 'Rename folder', 'edit', ' data-id="' + id + '"')
+      + Menu.sep()
+      + Menu.item('folder-del', 'Delete folder', 'trash', ' data-id="' + id + '"', true));
+  };
+  ACTIONS['folder-rename'] = function (el) {
+    var f = Store.folderById(el.getAttribute('data-id'));
+    if (!f) return;
+    Modal.open('<div class="m-title">Rename folder</div>'
+      + '<div class="m-row"><input class="m-input" id="mFolder" maxlength="60" value="' + U.esc(f.name) + '"></div>'
+      + '<div class="m-actions"><button class="btn" data-a="modal-close">Cancel</button>'
+      + '<button class="btn primary" data-a="folder-rename-ok" data-id="' + f.id + '">Save</button></div>',
+      function (root) { enterSubmits(root, 'folder-rename-ok'); });
+  };
+  ACTIONS['folder-rename-ok'] = function (el) {
+    var f = Store.folderById(el.getAttribute('data-id'));
+    var name = document.getElementById('mFolder').value.trim();
+    if (f && name) { f.name = name; Store.save(); }
+    Modal.close(); App.render();
+  };
+  ACTIONS['folder-del'] = function (el) {
+    var f = Store.folderById(el.getAttribute('data-id'));
+    if (!f) return;
+    Modal.confirm('Delete folder “' + f.name + '”?', 'Only the folder goes — everything inside it is kept and moves out to “Not in a folder”.', 'Delete folder', true, function () {
+      Store.deleteFolder(f.id);
+      App.render();
+    });
+  };
+
+  // "Move to…" — the tap-friendly alternative to dragging.
+  ACTIONS['move'] = function (el) {
+    var kind = el.getAttribute('data-kind'), id = el.getAttribute('data-id');
+    var it = Store.itemById(kind, id);
+    if (!it) return;
+    var space = spaceOf(kind);
+    var cur = validFolder(it.folderId, space);
+    var opts = foldersIn(space).map(function (f) {
+      var on = cur && cur.id === f.id;
+      return '<button class="pick' + (on ? ' on' : '') + '" data-a="move-go" data-kind="' + kind + '" data-id="' + id + '" data-folder="' + f.id + '">'
+        + U.icon('folder') + '<span>' + U.esc(f.name) + '</span>' + (on ? U.icon('check', 'end') : '') + '</button>';
+    }).join('');
+    var essays = '';
+    if (kind === 'chain') {
+      essays = '<div class="m-lbl" style="margin-top:16px">…or make it a paragraph of an essay</div><div class="picks">'
+        + Store.data().essays.map(function (e) {
+          var on = it.essayId === e.id;
+          return '<button class="pick' + (on ? ' on' : '') + '" data-a="move-essay" data-id="' + id + '" data-essay="' + e.id + '">'
+            + U.icon('doc') + '<span>' + U.esc(e.title) + '</span>' + (on ? U.icon('check', 'end') : '') + '</button>';
+        }).join('') + '</div>';
+    }
+    Modal.open('<div class="m-title">Move “' + U.esc(it.name || it.title) + '”</div>'
+      + '<div class="m-lbl">Folder</div><div class="picks">'
+      + '<button class="pick' + (!cur ? ' on' : '') + '" data-a="move-go" data-kind="' + kind + '" data-id="' + id + '" data-folder="">'
+      + U.icon('list') + '<span>Not in a folder</span>' + (!cur ? U.icon('check', 'end') : '') + '</button>'
+      + opts + '</div>' + essays
+      + '<div class="m-row" style="margin-top:14px"><label class="m-lbl">Or a new folder</label>'
+      + '<div class="inline-form"><input class="m-input" id="mNewFolder" maxlength="60" placeholder="New folder name">'
+      + '<button class="btn" data-a="move-new" data-kind="' + kind + '" data-id="' + id + '">Create &amp; move</button></div></div>'
+      + '<div class="m-actions"><button class="btn" data-a="modal-close">Done</button></div>');
+  };
+  ACTIONS['move-go'] = function (el) {
+    var kind = el.getAttribute('data-kind'), id = el.getAttribute('data-id');
+    var it = Store.itemById(kind, id);
+    if (kind === 'chain' && it && it.essayId) it.essayId = null;   // leaving its essay to live in a folder
+    Store.moveToFolder(kind, id, el.getAttribute('data-folder') || null);
+    Modal.close();
+    var f = Store.folderById(el.getAttribute('data-folder'));
+    FX.toast(f ? 'Moved to “' + U.esc(f.name) + '”' : 'Moved out of its folder', 'green', 1800);
+    App.render();
+  };
+  ACTIONS['move-new'] = function (el) {
+    var kind = el.getAttribute('data-kind'), id = el.getAttribute('data-id');
+    var name = document.getElementById('mNewFolder').value.trim();
+    if (!name) { FX.toast('Type a folder name first.', 'amber'); return; }
+    var f = Store.addFolder(name, spaceOf(kind));
+    var it = Store.itemById(kind, id);
+    if (kind === 'chain' && it) it.essayId = null;
+    Store.moveToFolder(kind, id, f.id);
+    Modal.close();
+    FX.toast('Moved to new folder “' + U.esc(f.name) + '”', 'green', 1800);
+    App.render();
+  };
+  ACTIONS['move-essay'] = function (el) {
+    var ch = Store.chainById(el.getAttribute('data-id'));
+    if (!ch) return;
+    ch.essayId = el.getAttribute('data-essay');
+    ch.folderId = null;
+    Store.save();
+    Modal.close();
+    FX.toast('Added to “' + U.esc(Store.essayById(ch.essayId).title) + '”', 'green', 1800);
+    App.render();
+  };
+
+  // Submit a small modal form on Enter
+  function enterSubmits(root, action) {
+    root.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') {
+        ev.preventDefault();
+        var b = root.querySelector('[data-a="' + action + '"]');
+        if (b) b.click();
+      }
+    });
+  }
+  window.enterSubmits = enterSubmits;
+
+  // Drag handlers shared by both spaces
+  function dropIntoFolder(kind) {
+    return function (info) {
+      var it = Store.itemById(kind, info.id);
+      if (!it) return;
+      if (info.target) {
+        if (info.target.hasAttribute('data-essay') && kind === 'chain') {
+          it.essayId = info.target.getAttribute('data-essay'); it.folderId = null;
+          Store.save();
+          FX.toast('Added to “' + U.esc(Store.essayById(it.essayId).title) + '”', 'green', 1800);
+        } else {
+          var fid = info.target.getAttribute('data-folder') || null;
+          if (kind === 'chain') it.essayId = null;
+          Store.moveToFolder(kind, info.id, fid);
+          var f = Store.folderById(fid);
+          FX.toast(f ? 'Moved to “' + U.esc(f.name) + '”' : 'Moved out of its folder', 'green', 1600);
+        }
+      } else if (info.list) {
+        it.folderId = info.list.getAttribute('data-folder') || null;
+        if (kind === 'chain') it.essayId = null;
+        Store.reorder(kind, info.ids);
+      }
+      App.render();
+    };
+  }
+  Sortable.on('subject', dropIntoFolder('subject'));
+  Sortable.on('essay', dropIntoFolder('essay'));
+  Sortable.on('chain', dropIntoFolder('chain'));
+  Sortable.on('sfolder', function (info) { if (info.list) Store.reorder('folder', info.ids); App.render(); });
+  Sortable.on('cfolder', function (info) { if (info.list) Store.reorder('folder', info.ids); App.render(); });
+  Sortable.on('echain', function (info) { if (info.list) Store.reorder('chain', info.ids); App.render(); });
+
+  /* ══════════════════════════════════════════════════════════════════════
+     CHAINS · Mode B — folders → essays → paragraph chains
      ════════════════════════════════════════════════════════════════════ */
   var V = window.V = {};
 
@@ -259,110 +679,331 @@
     return html;
   }
 
-  function chainRow(ch) {
-    var links = chainLinkStates(ch);
-    var done = links.filter(function (l) { return l.verified; }).length;
-    var dueN = links.filter(function (l) { return l.due; }).length + (chainOrderState(ch).due ? 1 : 0);
-    return '<div class="chain-row">'
-      + '<span class="cr-title">' + U.esc(ch.title) + (chainForged(ch) ? ' <span class="forged">⚓</span>' : '') + '</span>'
-      + linksVisual(ch, true)
-      + '<span class="ch-sub">' + done + '/' + links.length + '</span>'
-      + (dueN ? '<span class="pill due">' + dueN + ' due</span>' : '')
-      + '<span class="ch-actions"><button class="btn" data-a="chain-open" data-id="' + ch.id + '">Study</button>'
-      + '<button class="tool" title="Delete chain" data-a="chain-del" data-id="' + ch.id + '">🗑</button></span>'
-      + '</div>';
+  function chainTally(chains) {
+    var t = { n: 0, v: 0, p: 0, due: 0, forged: 0 };
+    chains.forEach(function (ch) {
+      chainLinkStates(ch).forEach(function (l) {
+        t.n++;
+        if (l.verified) t.v++; else if (l.started) t.p++;
+        if (l.due) t.due++;
+      });
+      if (chainOrderState(ch).due) t.due++;
+      if (chainForged(ch)) t.forged++;
+    });
+    return t;
+  }
+  function essayChains(e) { return Store.data().chains.filter(function (c) { return c.essayId === e.id; }); }
+  window.essayChains = essayChains;
+
+  function essayCard(e) {
+    var chains = essayChains(e);
+    var t = chainTally(chains);
+    var subj = e.subjectId ? Store.subjectById(e.subjectId) : null;
+    var html = '<div class="ecard" data-sort="essay" data-id="' + e.id + '" data-drop="chain" data-essay="' + e.id + '" data-a="essay-open" role="button" tabindex="0">'
+      + U.grip()
+      + '<div class="ec-head"><span class="ec-ic">' + U.icon('doc') + '</span>'
+      + '<div class="ec-title">' + U.esc(e.title) + '</div>'
+      + '<button class="kebab" data-a="essay-menu" data-id="' + e.id + '" title="Essay options">' + U.icon('dots') + '</button></div>'
+      + '<div class="ec-meta">' + (subj ? '<span class="tag">' + U.esc(subj.name) + '</span>' : '')
+      + '<span>' + U.plural(chains.length, 'paragraph') + '</span>'
+      + (t.due ? '<span class="pill due">' + t.due + ' due</span>' : '')
+      + (chains.length && t.forged === chains.length ? '<span class="pill ok">⚓ forged</span>' : '') + '</div>';
+    if (chains.length) {
+      html += '<div class="ec-paras">';
+      chains.slice(0, 5).forEach(function (ch) {
+        html += '<div class="ecp"><span class="ecp-t">' + U.esc(ch.title) + '</span>' + linksVisual(ch, true) + '</div>';
+      });
+      if (chains.length > 5) html += '<div class="ecp more">+ ' + (chains.length - 5) + ' more</div>';
+      html += '</div>';
+    } else {
+      html += '<div class="ec-empty">No paragraphs yet</div>';
+    }
+    html += '<div class="ec-foot">' + U.segbar([[t.v, 'var(--green)'], [t.p, 'var(--amber)']], t.n)
+      + '<span class="ec-num">' + t.v + '/' + t.n + ' links</span></div></div>';
+    return html;
+  }
+
+  function chainCard(ch) {
+    var t = chainTally([ch]);
+    var subj = ch.subjectId ? Store.subjectById(ch.subjectId) : null;
+    return '<div class="ecard chain" data-sort="chain" data-id="' + ch.id + '" data-a="chain-open" role="button" tabindex="0">'
+      + U.grip()
+      + '<div class="ec-head"><span class="ec-ic">' + U.icon('chain') + '</span>'
+      + '<div class="ec-title">' + U.esc(ch.title) + '</div>'
+      + '<button class="kebab" data-a="chain-menu" data-id="' + ch.id + '" title="Chain options">' + U.icon('dots') + '</button></div>'
+      + '<div class="ec-meta">' + (subj ? '<span class="tag">' + U.esc(subj.name) + '</span>' : '')
+      + '<span>' + U.plural(ch.sentences.length, 'link') + '</span>'
+      + (t.due ? '<span class="pill due">' + t.due + ' due</span>' : '')
+      + (chainForged(ch) ? '<span class="pill ok">⚓ forged</span>' : '') + '</div>'
+      + linksVisual(ch)
+      + '<div class="ec-foot">' + U.segbar([[t.v, 'var(--green)'], [t.p, 'var(--amber)']], t.n)
+      + '<span class="ec-num">' + t.v + '/' + t.n + ' links</span></div></div>';
+  }
+  window.ChainUI = { essayCard: essayCard, chainCard: chainCard, tally: chainTally, linksVisual: linksVisual };
+
+  function dueChainKeys(filter) {
+    return Store.dueFacets().filter(function (d) {
+      return d.ctx.kind === 'link' && (!filter || filter(d.ctx.chain));
+    }).map(function (d) { return d.key; });
   }
 
   V.chains = function () {
     var D = Store.data();
-    var html = '<div class="board-head"><div><div class="bh-title">Chains</div>'
-      + '<div class="bh-sub">Essay &amp; sequence mastery — one keyword per sentence, master the order, then forge every link. Group a chain per paragraph under an essay.</div></div>'
-      + '<div class="bh-actions"><button class="btn" data-a="essay-new">＋ New essay</button>'
-      + '<button class="btn primary" data-a="chain-new">＋ New chain</button></div></div>';
+    var folders = foldersIn('chains');
+    var dueN = dueChainKeys().length;
+    var all = chainTally(D.chains);
 
-    if (!D.chains.length && !D.essays.length) {
-      html += '<div class="empty"><span class="big">⛓️</span>No chains yet.<br>Paste an essay paragraph and Anchor will help you master it sentence-by-sentence — the keyword method, built in.<br><br><button class="btn primary" data-a="chain-new">Build your first chain</button></div>';
+    var html = '<div class="page-head"><div>'
+      + '<div class="eyebrow">Essays &amp; sequences</div><h1>Chains</h1>'
+      + '<div class="ph-sub">One keyword per sentence. Master the order, then forge every link. '
+      + (D.chains.length ? '<b>' + all.v + '/' + all.n + '</b> links anchored across ' + U.plural(D.chains.length, 'chain') + '.' : '') + '</div></div>'
+      + '<div class="ph-actions">'
+      + '<button class="btn" data-a="folder-new" data-space="chains">' + U.icon('folderPlus') + 'Folder</button>'
+      + '<button class="btn" data-a="essay-new">' + U.icon('doc') + 'Essay</button>'
+      + '<button class="btn primary" data-a="chain-new">' + U.icon('plus') + 'New chain</button></div></div>';
+
+    if (dueN) {
+      html += '<div class="callout due"><span class="co-ic">' + U.icon('bell') + '</span><div class="co-body">'
+        + '<div class="co-title">' + U.plural(dueN, 'link') + ' fading</div>'
+        + '<div class="co-sub">Anchored sentences have drifted to your recall target — one recall each locks them back in.</div></div>'
+        + '<button class="btn primary" data-a="chains-review">Review now</button></div>';
+    }
+
+    if (!D.chains.length && !D.essays.length && !folders.length) {
+      html += '<div class="empty"><div class="empty-ic">' + U.icon('chain') + '</div><div class="empty-t">No chains yet</div>'
+        + 'Paste an essay paragraph and Anchor helps you master it sentence by sentence — the keyword method, built in.'
+        + '<div class="empty-acts"><button class="btn primary" data-a="chain-new">Build your first chain</button>'
+        + '<button class="btn" data-a="essay-new">Start an essay</button></div></div>';
       return html;
     }
 
-    // essays with their paragraph chains
-    D.essays.forEach(function (e) {
-      var chains = D.chains.filter(function (c) { return c.essayId === e.id; });
-      var subj = e.subjectId ? Store.subjectById(e.subjectId) : null;
-      var forged = chains.filter(chainForged).length;
-      html += '<div class="chain-card essay-card">'
-        + '<div class="ch-top"><span class="ch-title">📝 ' + U.esc(e.title) + '</span>'
-        + (subj ? '<span class="pill">' + U.esc(subj.name) + '</span>' : '')
-        + (chains.length && forged === chains.length ? '<span class="forged">⚓ Essay forged</span>'
-           : '<span class="ch-sub">' + forged + '/' + chains.length + ' paragraphs forged</span>')
-        + '<span class="ch-actions">'
-        + '<button class="btn" data-a="chain-new" data-essay="' + e.id + '">＋ Paragraph</button>'
-        + '<button class="tool" title="Rename essay" data-a="essay-edit" data-id="' + e.id + '">✎</button>'
-        + '<button class="tool" title="Delete essay (chains are kept)" data-a="essay-del" data-id="' + e.id + '">🗑</button></span></div>';
-      if (!chains.length) html += '<div class="ch-sub" style="margin-top:8px">No paragraphs yet — add a chain for paragraph 1.</div>';
-      chains.forEach(function (ch) { html += chainRow(ch); });
-      html += '</div>';
-    });
+    function grids(fid) {
+      var essays = D.essays.filter(function (e) { return (validFolder(e.folderId, 'chains') ? e.folderId : '') === fid; });
+      var loose = D.chains.filter(function (c) { return !c.essayId && (validFolder(c.folderId, 'chains') ? c.folderId : '') === fid; });
+      return {
+        n: essays.length + loose.length,
+        html: '<div class="cgrid" data-sort-list="essay" data-folder="' + fid + '" data-axis="grid">' + essays.map(essayCard).join('') + '</div>'
+          + '<div class="cgrid" data-sort-list="chain" data-folder="' + fid + '" data-axis="grid">' + loose.map(chainCard).join('') + '</div>'
+      };
+    }
 
-    // standalone chains
-    var loose = D.chains.filter(function (c) { return !c.essayId; });
-    if (loose.length) {
-      if (D.essays.length) html += '<div class="sec-head">Standalone chains</div>';
-      loose.forEach(function (ch) {
-        var subj = ch.subjectId ? Store.subjectById(ch.subjectId) : null;
-        html += '<div class="chain-card"><div class="ch-top"><span class="ch-title">' + U.esc(ch.title) + '</span>'
-          + (subj ? '<span class="pill">' + U.esc(subj.name) + '</span>' : '')
-          + (chainForged(ch) ? '<span class="forged">⚓ Forged</span>' : '')
-          + '<span class="ch-actions"><button class="btn" data-a="chain-open" data-id="' + ch.id + '">Study</button>'
-          + '<button class="tool" title="Delete chain" data-a="chain-del" data-id="' + ch.id + '">🗑</button></span></div>'
-          + linksVisual(ch)
-          + '</div>';
+    if (folders.length) {
+      html += '<div class="fsecs" data-sort-list="cfolder" data-axis="y">';
+      folders.forEach(function (f) {
+        var g = grids(f.id);
+        html += U.folderSec(f, 'cfolder', 'essay chain', g.html, g.n, 'Empty folder — drag essays or chains in here, or use ⋯ → Move.');
       });
+      html += '</div>';
+    }
+    var loose = grids('');
+    if (loose.n || folders.length) {
+      html += '<section class="fsec loose">'
+        + (folders.length ? '<div class="fsec-head plain" data-drop="essay chain" data-folder=""><span class="fsec-name">Not in a folder</span><span class="fsec-count">' + loose.n + '</span></div>' : '')
+        + '<div class="fsec-body">' + loose.html + '</div></section>';
     }
     return html;
   };
 
-  ACTIONS['essay-new'] = function () {
+  ACTIONS['chains-review'] = function () {
+    App.startSession(dueChainKeys(), { v: 'chains' }, 'Chains · review');
+  };
+  ACTIONS['essay-open'] = function (el) { App.go({ v: 'essay', id: el.getAttribute('data-id') }); };
+  ACTIONS['chain-open'] = function (el) { App.go({ v: 'chain', id: el.getAttribute('data-id') }); };
+
+  ACTIONS['essay-menu'] = function (el) {
+    var id = el.getAttribute('data-id'), a = ' data-id="' + id + '"';
+    Menu.open(el, Menu.item('essay-open', 'Open', 'doc', a)
+      + Menu.item('chain-new', 'Add a paragraph', 'plus', ' data-essay="' + id + '"')
+      + Menu.item('essay-edit', 'Rename / subject', 'edit', a)
+      + Menu.item('move', 'Move to folder…', 'move', a + ' data-kind="essay"')
+      + Menu.sep()
+      + Menu.item('essay-del', 'Delete essay', 'trash', a, true));
+  };
+  ACTIONS['chain-menu'] = function (el) {
+    var id = el.getAttribute('data-id'), a = ' data-id="' + id + '"';
+    var ch = Store.chainById(id);
+    Menu.open(el, Menu.item('chain-open', 'Open', 'chain', a)
+      + Menu.item('chain-drill', 'Drill links', 'play', a)
+      + Menu.item('recital', 'Full recital', 'write', a)
+      + Menu.item('chain-edit', 'Rename / settings', 'edit', a)
+      + Menu.item('move', ch && ch.essayId ? 'Move out of essay…' : 'Move…', 'move', a + ' data-kind="chain"')
+      + Menu.sep()
+      + Menu.item('chain-del', 'Delete chain', 'trash', a, true));
+  };
+
+  function folderSelect(space, cur) {
+    var fs = foldersIn(space);
+    if (!fs.length) return '';
+    return '<div class="m-row"><label class="m-lbl">Folder</label><select class="m-select" id="mFolderSel"><option value="">— not in a folder —</option>'
+      + fs.map(function (f) { return '<option value="' + f.id + '"' + (cur === f.id ? ' selected' : '') + '>' + U.esc(f.name) + '</option>'; }).join('')
+      + '</select></div>';
+  }
+  window.folderSelect = folderSelect;
+  function readFolderSelect() { var s = document.getElementById('mFolderSel'); return s ? (s.value || null) : undefined; }
+  window.readFolderSelect = readFolderSelect;
+
+  ACTIONS['essay-new'] = function (el) {
     var subs = Store.data().subjects;
+    var fid = (el && el.getAttribute('data-folder')) || '';
+    var sid = (el && el.getAttribute('data-subj')) || '';
     Modal.open('<div class="m-title">New essay</div>'
-      + '<div class="m-sub">An essay is just a folder for its paragraph chains — usually one chain per paragraph.</div>'
-      + '<div class="m-row"><label class="m-lbl">Essay title</label><input class="m-input" id="mTitle" placeholder="e.g. Operations strategies essay"></div>'
+      + '<div class="m-sub">An essay holds its paragraph chains — usually one chain per paragraph, in order.</div>'
+      + '<div class="m-row"><label class="m-lbl">Essay title</label><input class="m-input" id="mTitle" placeholder="e.g. Worlds of Upheaval base essay"></div>'
       + '<div class="m-row"><label class="m-lbl">Subject (optional)</label><select class="m-select" id="mSubj"><option value="">— none —</option>'
-      + subs.map(function (s) { return '<option value="' + s.id + '">' + U.esc(s.name) + '</option>'; }).join('') + '</select></div>'
+      + subs.map(function (s) { return '<option value="' + s.id + '"' + (sid === s.id ? ' selected' : '') + '>' + U.esc(s.name) + '</option>'; }).join('') + '</select></div>'
+      + folderSelect('chains', fid)
       + '<div class="m-actions"><button class="btn" data-a="modal-close">Cancel</button>'
-      + '<button class="btn primary" data-a="essay-new-ok">Create essay</button></div>');
+      + '<button class="btn primary" data-a="essay-new-ok">Create essay</button></div>',
+      function (root) { enterSubmits(root, 'essay-new-ok'); });
   };
   ACTIONS['essay-new-ok'] = function () {
     var t = document.getElementById('mTitle').value.trim();
-    if (!t) return;
-    Store.addEssay(t, document.getElementById('mSubj').value || null);
+    if (!t) { FX.toast('Give the essay a title.', 'amber'); return; }
+    var e = Store.addEssay(t, document.getElementById('mSubj').value || null);
+    var fid = readFolderSelect();
+    if (fid) { e.folderId = fid; Store.save(); }
     Modal.close();
-    FX.toast('Essay created — add a chain per paragraph 📝', 'green');
-    App.render();
+    FX.toast('Essay created — add a chain per paragraph', 'green');
+    App.go({ v: 'essay', id: e.id });
   };
   ACTIONS['essay-del'] = function (el) {
     var e = Store.essayById(el.getAttribute('data-id'));
-    Modal.confirm('Delete essay “' + e.title + '”?', 'Its chains are kept — they just become standalone.', 'Delete essay', true, function () {
+    if (!e) return;
+    Modal.confirm('Delete essay “' + e.title + '”?', 'Its paragraph chains (and their progress) are kept — they become standalone chains.', 'Delete essay', true, function () {
+      essayChains(e).forEach(function (c) { c.folderId = e.folderId || null; });
       Store.deleteEssay(e.id);
-      App.render();
+      if (App.route.v === 'essay' && App.route.id === e.id) App.go({ v: 'chains' }, { replace: true });
+      else App.render();
     });
+  };
+  ACTIONS['essay-edit'] = function (el) {
+    var e = Store.essayById(el.getAttribute('data-id'));
+    if (!e) return;
+    var subs = Store.data().subjects;
+    Modal.open('<div class="m-title">Edit essay</div>'
+      + '<div class="m-row"><label class="m-lbl">Title</label><input class="m-input" id="mTitle" value="' + U.esc(e.title) + '"></div>'
+      + '<div class="m-row"><label class="m-lbl">Subject</label><select class="m-select" id="mSubj"><option value="">— none —</option>'
+      + subs.map(function (s) { return '<option value="' + s.id + '"' + (e.subjectId === s.id ? ' selected' : '') + '>' + U.esc(s.name) + '</option>'; }).join('') + '</select>'
+      + '<div class="m-hint">Linked essays also show up inside that subject on the Harbour.</div></div>'
+      + folderSelect('chains', e.folderId)
+      + '<div class="m-actions"><button class="btn warn" data-a="essay-del" data-id="' + e.id + '" style="margin-right:auto">Delete</button>'
+      + '<button class="btn" data-a="modal-close">Cancel</button>'
+      + '<button class="btn primary" data-a="essay-edit-ok" data-id="' + e.id + '">Save</button></div>',
+      function (root) { enterSubmits(root, 'essay-edit-ok'); });
+  };
+  ACTIONS['essay-edit-ok'] = function (el) {
+    var e = Store.essayById(el.getAttribute('data-id'));
+    if (!e) return;
+    var t = document.getElementById('mTitle').value.trim();
+    if (t) e.title = t;
+    e.subjectId = document.getElementById('mSubj').value || null;
+    var fid = readFolderSelect();
+    if (fid !== undefined) e.folderId = fid;
+    Store.save(); Modal.close(); App.render();
   };
   ACTIONS['chain-del'] = function (el) {
     var id = el.getAttribute('data-id');
     var ch = Store.chainById(id);
+    if (!ch) return;
     Modal.confirm('Delete “' + ch.title + '”?', 'The chain and its study history will be removed. This cannot be undone.', 'Delete chain', true, function () {
+      var essayId = ch.essayId;
       Store.deleteChain(id);
-      if (App.route.v === 'chain' && App.route.id === id) App.go({ v: 'chains' });
-      else App.render();
+      if (App.route.v === 'chain' && App.route.id === id) {
+        App.go(essayId && Store.essayById(essayId) ? { v: 'essay', id: essayId } : { v: 'chains' }, { replace: true });
+      } else App.render();
     });
   };
-  ACTIONS['chain-open'] = function (el) { App.go({ v: 'chain', id: el.getAttribute('data-id') }); };
   ACTIONS['chain-new'] = function (el) {
     CB = { title: '', subjectId: '', essayId: (el && el.getAttribute('data-essay')) || '', raw: '', sents: null };
     var e = CB.essayId ? Store.essayById(CB.essayId) : null;
     if (e && e.subjectId) CB.subjectId = e.subjectId;
+    if (e) CB.title = 'Paragraph ' + (essayChains(e).length + 1);
     App.go({ v: 'chainBuild' });
   };
+
+  /* --- Essay page — its paragraphs, in order ------------------------------ */
+  V.essay = function (route) {
+    var e = Store.essayById(route.id);
+    if (!e) return '<div class="empty"><div class="empty-t">Essay not found</div><div class="empty-acts"><a class="btn" href="#/chains">Back to chains</a></div></div>';
+    var chains = essayChains(e);
+    var t = chainTally(chains);
+    var subj = e.subjectId ? Store.subjectById(e.subjectId) : null;
+    var folder = validFolder(e.folderId, 'chains');
+
+    var html = U.crumbs([['Chains', '#/chains']].concat(folder ? [[folder.name, '#/chains']] : []).concat([[e.title]]));
+    html += '<div class="page-head"><div>'
+      + '<div class="eyebrow">' + U.icon('doc', 'sm') + 'Essay' + (subj ? ' · <a href="#/subject/' + encodeURIComponent(subj.id) + '">' + U.esc(subj.name) + '</a>' : '') + '</div>'
+      + '<h1>' + U.esc(e.title) + '</h1>'
+      + '<div class="ph-sub">' + U.plural(chains.length, 'paragraph') + ' · ' + t.v + '/' + t.n + ' links anchored'
+      + (chains.length && t.forged === chains.length ? ' · <b class="ok">⚓ essay forged</b>' : '') + '</div></div>'
+      + '<div class="ph-actions">'
+      + (t.due ? '<button class="btn due" data-a="essay-review" data-id="' + e.id + '">' + U.icon('bell') + 'Review ' + t.due + '</button>' : '')
+      + (t.n ? '<button class="btn" data-a="essay-drill" data-id="' + e.id + '">' + U.icon('play') + 'Drill all links</button>' : '')
+      + '<button class="btn primary" data-a="chain-new" data-essay="' + e.id + '">' + U.icon('plus') + 'Paragraph</button>'
+      + '<button class="kebab lg" data-a="essay-menu" data-id="' + e.id + '" title="Essay options">' + U.icon('dots') + '</button></div></div>';
+
+    if (t.n) {
+      html += '<div class="progress-strip">' + U.segbar([[t.v, 'var(--green)'], [t.p, 'var(--amber)']], t.n)
+        + '<div class="ps-legend"><span><i style="background:var(--green)"></i>' + t.v + ' anchored</span>'
+        + '<span><i style="background:var(--amber)"></i>' + t.p + ' getting there</span>'
+        + '<span><i style="background:var(--line2)"></i>' + (t.n - t.v - t.p) + ' new</span></div></div>';
+    }
+
+    if (!chains.length) {
+      html += '<div class="empty"><div class="empty-ic">' + U.icon('doc') + '</div><div class="empty-t">No paragraphs yet</div>'
+        + 'Add a chain for each paragraph, in order — the introduction first.'
+        + '<div class="empty-acts"><button class="btn primary" data-a="chain-new" data-essay="' + e.id + '">Add paragraph 1</button></div></div>';
+      return html;
+    }
+
+    html += '<div class="sec-title">Paragraphs <span class="muted">— drag to reorder</span></div>';
+    html += '<div class="plist" data-sort-list="echain" data-axis="y">';
+    chains.forEach(function (ch, i) {
+      var ct = chainTally([ch]);
+      var ord = chainOrderState(ch);
+      html += '<div class="prow" data-sort="echain" data-id="' + ch.id + '" data-a="chain-open" role="button" tabindex="0">'
+        + U.grip()
+        + '<span class="pnum">' + (i + 1) + '</span>'
+        + '<div class="pmain"><div class="ptitle">' + U.esc(ch.title) + (chainForged(ch) ? ' <span class="pill ok">⚓</span>' : '') + '</div>'
+        + '<div class="psub">' + U.plural(ch.sentences.length, 'link') + ' · order ' + (ord.verified ? '<b class="ok">anchored</b>' : ord.started ? 'in training' : 'not learned') + '</div>'
+        + linksVisual(ch, true) + '</div>'
+        + '<div class="pside"><span class="pcount">' + ct.v + '/' + ct.n + '</span>'
+        + (ct.due ? '<span class="pill due">' + ct.due + ' due</span>' : '') + '</div>'
+        + '<div class="pacts">'
+        + '<button class="btn sm" data-a="chain-drill" data-id="' + ch.id + '" title="Drill this paragraph’s links">' + U.icon('play') + '<span class="hide-sm">Drill</span></button>'
+        + '<button class="kebab" data-a="chain-menu" data-id="' + ch.id + '" title="Paragraph options">' + U.icon('dots') + '</button></div>'
+        + '</div>';
+    });
+    html += '</div>';
+    return html;
+  };
+
+  function essayKeys(e, onlyDue) {
+    var keys = [];
+    essayChains(e).forEach(function (ch) {
+      Store.chainFacets(ch).forEach(function (f) { keys.push(f.key); });
+    });
+    if (onlyDue) {
+      var due = {};
+      dueChainKeys(function (c) { return c.essayId === e.id; }).forEach(function (k) { due[k] = 1; });
+      keys = keys.filter(function (k) { return due[k]; });
+    }
+    return keys;
+  }
+  ACTIONS['essay-drill'] = function (el) {
+    var e = Store.essayById(el.getAttribute('data-id'));
+    var q = essayKeys(e);
+    q.sort(function (a, b) {
+      var ha = U.hold(a), hb = U.hold(b);
+      return (ha ? ha.r : 1.01) - (hb ? hb.r : 1.01);
+    });
+    App.startSession(q, { v: 'essay', id: e.id }, e.title);
+  };
+  ACTIONS['essay-review'] = function (el) {
+    var e = Store.essayById(el.getAttribute('data-id'));
+    App.startSession(essayKeys(e, true), { v: 'essay', id: e.id }, e.title + ' · review');
+  };
+
 
   /* --- Builder — paste, split, type a keyword per sentence ------------------ */
   var CB = { title: '', subjectId: '', essayId: '', raw: '', sents: null };
@@ -397,9 +1038,12 @@
   V.chainBuild = function () {
     var D = Store.data();
     var essay = CB.essayId ? Store.essayById(CB.essayId) : null;
-    var html = '<button class="bh-back" data-a="chains">← Chains</button>'
-      + '<div class="board-head"><div><div class="bh-title">New chain</div>'
-      + '<div class="bh-sub">Paste a paragraph → type <b>one keyword you choose yourself</b> for each sentence (choosing is encoding). Then master the sequence, then the links.</div></div></div>';
+    var trail = [['Chains', '#/chains']];
+    if (essay) trail.push([essay.title, '#/essay/' + encodeURIComponent(essay.id)]);
+    trail.push(['New chain']);
+    var html = U.crumbs(trail)
+      + '<div class="page-head"><div><div class="eyebrow">' + U.icon('chain', 'sm') + (essay ? 'New paragraph' : 'New chain') + '</div><h1>' + (essay ? U.esc(essay.title) : 'Build a chain') + '</h1>'
+      + '<div class="ph-sub">Paste a paragraph → type <b>one keyword you choose yourself</b> for each sentence (choosing is encoding). Then master the sequence, then the links.</div></div></div>';
 
     html += '<div class="set-card" style="margin-bottom:14px"><div class="set-row">'
       + '<div class="m-row" style="flex:2;min-width:220px;margin:0"><label class="m-lbl">Title</label>'
@@ -514,134 +1158,113 @@
     var ch = Store.addChain(CB.subjectId || null, CB.essayId || null, title, sents);
     CB = { title: '', subjectId: '', essayId: '', raw: '', sents: null };
     FX.toast('Chain created — ' + sents.length + ' links ⛓️', 'green');
-    App.go({ v: 'chain', id: ch.id });
+    App.go({ v: 'chain', id: ch.id }, { replace: true });   // back from the new chain skips the spent builder
   };
 
-  /* --- Chain board — works like the harbour: reveal, grade, earn the green --- */
+  /* --- Chain page — works like a subject board: reveal, grade, earn the green --- */
   function linkCardHTML(ch, i) {
     var sn = ch.sentences[i];
     var key = 'c:' + ch.id + ':' + sn.id;
     var st = Store.data().state[key];
-    var conf = st ? st.conf : null;
-    var got = st ? st.got : 0;
-    var hold = U.hold(key);
-    var isDue = hold && hold.due;
     var revealed = App.isRev(key);
-    var verified = Store.isVerified(key);
-    var CRIT = Store.GREEN_CRITERION;
-
-    var html = '<div class="item ' + U.stClass(key) + '" data-card="' + key + '">';
-
-    html += '<div class="cell cell-term"><div class="term-top"><span class="num">' + (i + 1) + '</span>'
-      + (isDue ? '<span class="due-pill">⚓ Review due</span>' : '')
-      + (!verified && got > 0 && got < CRIT ? '<span class="pill" title="Successful recalls — ' + CRIT + ' anchors it">⚓ ' + got + '/' + CRIT + '</span>' : '')
-      + '</div><div class="term">' + U.esc(sn.kw) + '</div>'
-      + '<div class="ctx">link ' + (i + 1) + ' of ' + ch.sentences.length + '</div></div>';
-
-    html += '<div class="cell cell-content"><div class="tools">'
-      + (i > 0 ? '<button class="tool" title="Move up" data-a="link-up" data-ch="' + ch.id + '" data-sid="' + sn.id + '">↑</button>' : '')
-      + (i < ch.sentences.length - 1 ? '<button class="tool" title="Move down" data-a="link-down" data-ch="' + ch.id + '" data-sid="' + sn.id + '">↓</button>' : '')
-      + '<button class="tool" title="Edit keyword or sentence" data-a="link-edit" data-ch="' + ch.id + '" data-sid="' + sn.id + '">✎</button>'
-      + '</div>';
+    var body;
     if (!revealed) {
-      if (window.textMode()) html += window.typeZoneHTML(key);
-      else html += '<div class="hidden-panel" data-a="reveal" data-k="' + key + '">👁 Reveal sentence — say it or whiteboard it first</div>';
+      if (window.textMode()) body = window.typeZoneHTML(key);
+      else body = '<button class="hidden-panel" data-a="reveal" data-k="' + key + '">' + U.icon('chevR', 'sm') + 'Reveal sentence — say it or write it first</button>';
     } else {
-      html += (window.textMode() ? window.producedHTML(key) : '')
+      body = (window.textMode() ? window.producedHTML(key) : '')
         + '<div class="c-text">' + U.esc(sn.text) + '</div>'
-        + '<div class="after-row"><span class="grade-hint">Did you produce it?</span>'
-        + '<button class="gbtn g1" data-a="grade" data-k="' + key + '" data-g="1">✗ Missed</button>'
-        + '<button class="gbtn g2" data-a="grade" data-k="' + key + '" data-g="2">~ Shaky</button>'
-        + '<button class="gbtn g3" data-a="grade" data-k="' + key + '" data-g="3">✓ Got it</button>'
-        + '<button class="gbtn g4" data-a="grade" data-k="' + key + '" data-g="4">⚡ Instant</button>'
-        + '<button class="hide-link" data-a="hide" data-k="' + key + '">Hide</button></div>';
+        + window.gradeRow(key);
     }
-    html += '</div>';
-
-    html += '<div class="cell cell-meta"><div class="meta-lbl">Confidence' + (verified ? ' <span style="color:var(--green)">⚓</span>' : '') + '</div>'
-      + '<div class="conf-btns">'
-      + '<button class="cbtn g' + (conf === 'g' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="g"><span class="cdot"></span>Know it' + (conf === 'g' && !verified && got < CRIT ? '<span class="unv">' + got + '/' + CRIT + '</span>' : '') + '</button>'
-      + '<button class="cbtn a' + (conf === 'a' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="a"><span class="cdot"></span>Getting there</button>'
-      + '<button class="cbtn r' + (conf === 'r' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="r"><span class="cdot"></span>Not yet</button></div>';
-    if (hold) {
-      var col = U.holdColor(hold.r);
-      html += '<div class="hold-line' + (isDue ? ' due' : '') + '">'
-        + (isDue ? '⚓ Due — recall now ~' + hold.pct + '%' : 'Holding ' + hold.pct + '% · ~' + (hold.S < 1 ? '&lt;1' : Math.round(hold.S)) + 'd stability')
-        + '</div><div class="hold-bar"><div class="hold-fill" style="width:' + hold.pct + '%;background:' + col + '"></div></div>';
-    }
-    html += '<div class="hold-line" style="color:var(--text3)">🕒 ' + (st && st.srs ? 'Last reviewed ' + U.ago(st.srs.last) : 'Never reviewed') + '</div>';
-    var hist = st ? st.hist.slice(-7) : [];
-    html += '<div class="hist-row">' + (hist.length
-      ? hist.map(function (h) { return '<span class="hdot ' + (h.g >= 3 ? 'g' : h.g === 2 ? 'a' : 'r') + '" title="' + U.fmtDate(h.t) + '"></span>'; }).join('')
-      : '<span class="hist-none">no attempts yet</span>') + '</div>';
-    if (st && (st.got || st.miss)) {
-      html += '<div class="hist-score"><span class="' + (st.got ? 'hs-g' : 'hs-z') + '">✓ ' + st.got + '</span>'
-        + '<span class="' + (st.miss ? 'hs-r' : 'hs-z') + '">✗ ' + st.miss + '</span></div>';
-    }
-    html += '</div></div>';
-    return html;
+    return window.studyCard({
+      key: key, st: st, num: i + 1,
+      sort: 'link', sortId: sn.id,
+      term: U.esc(sn.kw), ctx: 'link ' + (i + 1) + ' of ' + ch.sentences.length,
+      body: body,
+      tools: '<button class="tool" title="Edit keyword or sentence" data-a="link-edit" data-ch="' + ch.id + '" data-sid="' + sn.id + '">' + U.icon('edit') + '</button>'
+    });
   }
 
   V.chain = function (route) {
     var ch = Store.chainById(route.id);
-    if (!ch) return '<div class="empty">Chain not found.</div>';
+    if (!ch) return '<div class="empty"><div class="empty-t">Chain not found</div><div class="empty-acts"><a class="btn" href="#/chains">Back to chains</a></div></div>';
     var links = chainLinkStates(ch);
     var done = links.filter(function (l) { return l.verified; }).length;
     var dueLinks = links.filter(function (l) { return l.due; }).length;
     var ord = chainOrderState(ch);
     var subj = ch.subjectId ? Store.subjectById(ch.subjectId) : null;
     var essay = ch.essayId ? Store.essayById(ch.essayId) : null;
+    var folder = !essay ? validFolder(ch.folderId, 'chains') : null;
 
-    var html = '<button class="bh-back" data-a="chains">← Chains</button>'
-      + '<div class="board-head"><div><div class="bh-title">' + U.esc(ch.title) + '</div>'
-      + '<div class="bh-sub">' + (essay ? '📝 ' + U.esc(essay.title) + ' · ' : '') + (subj ? U.esc(subj.name) + ' · ' : '') + ch.sentences.length + ' links'
-      + (chainForged(ch) ? ' · <span style="color:var(--green);font-weight:800">⚓ forged — keep it polished</span>' : '') + '</div></div>'
-      + '<div class="bh-actions"><button class="btn" data-a="chain-edit" data-id="' + ch.id + '">✎ Edit</button></div></div>';
+    var trail = [['Chains', '#/chains']];
+    if (folder) trail.push([folder.name, '#/chains']);
+    if (essay) trail.push([essay.title, '#/essay/' + encodeURIComponent(essay.id)]);
+    trail.push([ch.title]);
+    var html = U.crumbs(trail);
 
-    // harbour-style stat row for the chain
+    // paragraph stepper — hop between an essay's paragraphs without leaving
+    if (essay) {
+      var sib = essayChains(essay);
+      var idx = sib.indexOf(ch);
+      html += '<div class="stepper">'
+        + (idx > 0 ? '<a class="step" href="#/chain/' + encodeURIComponent(sib[idx - 1].id) + '">' + U.icon('chevL', 'sm') + '<span>' + U.esc(sib[idx - 1].title) + '</span></a>' : '<span class="step off"></span>')
+        + '<span class="step-mid">Paragraph ' + (idx + 1) + ' of ' + sib.length + '</span>'
+        + (idx < sib.length - 1 ? '<a class="step nx" href="#/chain/' + encodeURIComponent(sib[idx + 1].id) + '"><span>' + U.esc(sib[idx + 1].title) + '</span>' + U.icon('chevR', 'sm') + '</a>' : '<span class="step off"></span>')
+        + '</div>';
+    }
+
+    html += '<div class="page-head"><div>'
+      + '<div class="eyebrow">' + U.icon('chain', 'sm') + 'Chain' + (subj ? ' · <a href="#/subject/' + encodeURIComponent(subj.id) + '">' + U.esc(subj.name) + '</a>' : '') + '</div>'
+      + '<h1>' + U.esc(ch.title) + '</h1>'
+      + '<div class="ph-sub">' + ch.sentences.length + ' links · ' + done + '/' + links.length + ' anchored'
+      + (chainForged(ch) ? ' · <b class="ok">⚓ forged — keep it polished</b>' : '') + '</div></div>'
+      + '<div class="ph-actions">'
+      + (dueLinks + (ord.due ? 1 : 0) ? '<button class="btn due" data-a="chain-drill" data-id="' + ch.id + '">' + U.icon('bell') + 'Review ' + (dueLinks + (ord.due ? 1 : 0)) + '</button>' : '')
+      + '<button class="btn" data-a="chain-edit" data-id="' + ch.id + '">' + U.icon('edit') + 'Edit</button>'
+      + '<button class="kebab lg" data-a="chain-menu" data-id="' + ch.id + '" title="Chain options">' + U.icon('dots') + '</button></div></div>';
+
     var inprog = 0, fresh = 0;
     links.forEach(function (l) { if (!l.verified) { if (l.started) inprog++; else fresh++; } });
-    var dueAll = dueLinks + (ord.due ? 1 : 0);
-    function sc(n, lbl, color, sub, extra) {
-      return '<div class="stat' + (extra || '') + '"' + (extra ? ' data-a="chain-drill" data-id="' + ch.id + '"' : '') + '><div class="n" style="color:' + color + '">' + n + '</div>'
-        + '<div class="l">' + lbl + '</div><div class="sub">' + sub + '</div></div>';
-    }
-    html += '<div class="statrow">'
-      + sc(done + '/' + links.length, 'Links anchored', 'var(--green)', '3+ successful recalls each')
-      + sc(inprog, 'Getting there', 'var(--amber)', 'keep recalling — 3 anchors it')
-      + sc(fresh, 'New', 'var(--text3)', 'not tested yet')
-      + sc(ord.verified ? '⚓' : (ord.started ? '…' : '—'), 'Order', ord.verified ? 'var(--green)' : 'var(--text3)', ord.verified ? 'sequence anchored' : (ord.started ? 'in training' : 'not learned yet'))
-      + sc(dueAll, 'Due for review', dueAll ? 'var(--amber)' : 'var(--text3)', dueAll ? 'tap to strengthen' : 'all holding strong', ' click' + (dueAll ? ' hot' : ''))
-      + '</div>';
-
-    html += '<div class="chain-card">' + linksVisual(ch)
-      + '<div class="ch-sub">' + done + '/' + links.length + ' links forged'
-      + (dueLinks ? ' · <span style="color:var(--amber);font-weight:700">' + dueLinks + ' fading — strengthen them</span>' : '') + '</div></div>';
+    html += '<div class="progress-strip">' + linksVisual(ch)
+      + '<div class="ps-legend"><span><i style="background:var(--green)"></i>' + done + ' anchored</span>'
+      + '<span><i style="background:var(--amber)"></i>' + inprog + ' getting there</span>'
+      + '<span><i style="background:var(--line2)"></i>' + fresh + ' new</span>'
+      + (dueLinks ? '<span class="due-t">' + dueLinks + ' fading</span>' : '') + '</div></div>';
 
     html += '<div class="stage-grid">';
-    html += '<div class="stage"><div class="st-num">Stage 1 · Order</div><div class="st-name">Master the sequence</div>'
-      + '<div class="st-desc">Lock in the keyword order first — it becomes the skeleton the whole paragraph hangs on.</div>'
-      + '<div class="st-state" style="color:' + (ord.verified ? 'var(--green)' : 'var(--text3)') + '">'
-      + (ord.verified ? '⚓ Anchored' + (ord.hold ? ' · holding ' + ord.hold.pct + '%' : '') : ord.started ? 'In training' : 'Not started') + (ord.due ? ' · <span style="color:var(--amber)">due</span>' : '') + '</div>'
-      + '<div style="display:flex;gap:7px;flex-wrap:wrap">'
-      + '<button class="btn" data-a="game-arrange" data-id="' + ch.id + '">Arrange</button>'
-      + '<button class="btn" data-a="game-nextlink" data-id="' + ch.id + '">Recall the chain</button></div></div>';
+    html += '<div class="stage"><div class="st-top"><span class="st-ic">' + U.icon('order') + '</span><span class="st-num">Stage 1 · Order</span></div>'
+      + '<div class="st-name">Master the sequence</div>'
+      + '<div class="st-desc">Lock in the keyword order first — it’s the skeleton the paragraph hangs on.</div>'
+      + '<div class="st-state' + (ord.verified ? ' ok' : '') + '">'
+      + (ord.verified ? '⚓ Anchored' + (ord.hold ? ' · holding ' + ord.hold.pct + '%' : '') : ord.started ? 'In training' : 'Not started') + (ord.due ? ' · <span class="due-t">due</span>' : '') + '</div>'
+      + '<div class="st-acts"><button class="btn sm" data-a="game-arrange" data-id="' + ch.id + '">Arrange</button>'
+      + '<button class="btn sm" data-a="game-nextlink" data-id="' + ch.id + '">Recall the chain</button></div></div>';
 
-    html += '<div class="stage"><div class="st-num">Stage 2 · Links</div><div class="st-name">Keyword → sentence</div>'
-      + '<div class="st-desc">Each keyword becomes a recall card: see the keyword, produce the full sentence.</div>'
-      + '<div class="st-state" style="color:' + (done === links.length ? 'var(--green)' : 'var(--text3)') + '">' + done + '/' + links.length + ' anchored' + (dueLinks ? ' · <span style="color:var(--amber)">' + dueLinks + ' due</span>' : '') + '</div>'
-      + '<button class="btn" data-a="chain-drill" data-id="' + ch.id + '">Drill links</button></div>';
+    html += '<div class="stage"><div class="st-top"><span class="st-ic">' + U.icon('link') + '</span><span class="st-num">Stage 2 · Links</span></div>'
+      + '<div class="st-name">Keyword → sentence</div>'
+      + '<div class="st-desc">See the keyword, produce the full sentence. Three good recalls anchor a link.</div>'
+      + '<div class="st-state' + (done === links.length ? ' ok' : '') + '">' + done + '/' + links.length + ' anchored' + (dueLinks ? ' · <span class="due-t">' + dueLinks + ' due</span>' : '') + '</div>'
+      + '<div class="st-acts"><button class="btn sm" data-a="chain-drill" data-id="' + ch.id + '">' + U.icon('play') + 'Drill links</button></div></div>';
 
-    html += '<div class="stage"><div class="st-num">Stage 3 · Recital</div><div class="st-name">Write the lot</div>'
-      + '<div class="st-desc">Free recall — reproduce the whole paragraph from memory, then check it sentence-by-sentence.</div>'
-      + '<div class="st-state" style="color:var(--text3)">The highest-value retrieval there is</div>'
-      + '<button class="btn primary" data-a="recital" data-id="' + ch.id + '">Full recital</button></div>';
+    html += '<div class="stage"><div class="st-top"><span class="st-ic">' + U.icon('write') + '</span><span class="st-num">Stage 3 · Recital</span></div>'
+      + '<div class="st-name">Write the lot</div>'
+      + '<div class="st-desc">Reproduce the whole paragraph from memory, then check it sentence by sentence.</div>'
+      + '<div class="st-state">The highest-value retrieval there is</div>'
+      + '<div class="st-acts"><button class="btn sm primary" data-a="recital" data-id="' + ch.id + '">Full recital</button></div></div>';
     html += '</div>';
 
-    html += '<div class="sec-head"><span>The links — test yourself, card by card</span>' + window.studyModeToggle() + '</div>';
+    html += '<div class="sec-title"><span>The links</span><span class="muted">— test yourself card by card · drag ⋮⋮ to reorder</span>' + window.studyModeToggle() + '</div>';
+    html += '<div class="cards" data-sort-list="link" data-axis="y">';
     ch.sentences.forEach(function (sn, i) { html += linkCardHTML(ch, i); });
+    html += '</div>';
     return html;
   };
+
+  Sortable.on('link', function (info) {
+    var ch = Store.chainById(App.route.id);
+    if (ch && info.list) Store.reorderIn(ch.sentences, info.ids);
+    App.render();
+  });
 
   /* --- Chain & link editing ---------------------------------------------------- */
   function findSent(chId, sid) {
@@ -650,30 +1273,30 @@
     var i = ch.sentences.findIndex(function (s) { return s.id === sid; });
     return i < 0 ? null : { ch: ch, i: i, sn: ch.sentences[i] };
   }
-  ACTIONS['link-up'] = function (el) {
-    var r = findSent(el.getAttribute('data-ch'), el.getAttribute('data-sid'));
-    if (!r || r.i === 0) return;
-    var a = r.ch.sentences;
-    a[r.i] = a[r.i - 1]; a[r.i - 1] = r.sn;
-    Store.save(); App.render();
-  };
-  ACTIONS['link-down'] = function (el) {
-    var r = findSent(el.getAttribute('data-ch'), el.getAttribute('data-sid'));
-    if (!r || r.i >= r.ch.sentences.length - 1) return;
-    var a = r.ch.sentences;
-    a[r.i] = a[r.i + 1]; a[r.i + 1] = r.sn;
-    Store.save(); App.render();
-  };
   ACTIONS['link-edit'] = function (el) {
     var r = findSent(el.getAttribute('data-ch'), el.getAttribute('data-sid'));
     if (!r) return;
     Modal.open('<div class="m-title">Edit link ' + (r.i + 1) + '</div>'
       + '<div class="m-row"><label class="m-lbl">Keyword (your retrieval cue)</label><input class="m-input" id="mKw" maxlength="30" value="' + U.esc(r.sn.kw) + '"></div>'
       + '<div class="m-row"><label class="m-lbl">Sentence</label><textarea class="m-ta" id="mSent">' + U.esc(r.sn.text) + '</textarea></div>'
+      + '<div class="m-row"><label class="m-lbl">Position</label><div class="inline-form">'
+      + '<button class="btn sm" data-a="link-up" data-ch="' + r.ch.id + '" data-sid="' + r.sn.id + '"' + (r.i === 0 ? ' disabled' : '') + '>↑ Move up</button>'
+      + '<button class="btn sm" data-a="link-down" data-ch="' + r.ch.id + '" data-sid="' + r.sn.id + '"' + (r.i === r.ch.sentences.length - 1 ? ' disabled' : '') + '>↓ Move down</button></div></div>'
       + '<div class="m-actions"><button class="btn warn" data-a="link-del" data-ch="' + r.ch.id + '" data-sid="' + r.sn.id + '" style="margin-right:auto">Delete link</button>'
       + '<button class="btn" data-a="modal-close">Cancel</button>'
       + '<button class="btn primary" data-a="link-edit-ok" data-ch="' + r.ch.id + '" data-sid="' + r.sn.id + '">Save</button></div>');
   };
+  function moveLink(el, dir) {
+    var r = findSent(el.getAttribute('data-ch'), el.getAttribute('data-sid'));
+    if (!r) return;
+    var j = r.i + dir, a = r.ch.sentences;
+    if (j < 0 || j >= a.length) return;
+    a[r.i] = a[j]; a[j] = r.sn;
+    Store.save(); Modal.close(); App.render();
+    FX.toast('Moved to position ' + (j + 1), '', 1400);
+  }
+  ACTIONS['link-up'] = function (el) { moveLink(el, -1); };
+  ACTIONS['link-down'] = function (el) { moveLink(el, 1); };
   ACTIONS['link-edit-ok'] = function (el) {
     var r = findSent(el.getAttribute('data-ch'), el.getAttribute('data-sid'));
     if (!r) return;
@@ -681,7 +1304,7 @@
     var text = (document.getElementById('mSent').value || '').trim();
     if (!kw || !text) { FX.toast('Keyword and sentence both need something in them.', 'amber'); return; }
     var dupe = r.ch.sentences.some(function (s, j) { return j !== r.i && s.kw.toLowerCase() === kw.toLowerCase(); });
-    if (dupe) { FX.toast('“' + kw + '” is already a keyword in this chain — keep them distinct.', 'amber'); return; }
+    if (dupe) { FX.toast('“' + U.esc(kw) + '” is already a keyword in this chain — keep them distinct.', 'amber'); return; }
     r.sn.kw = kw; r.sn.text = text;
     Store.save(); Modal.close(); App.render();
   };
@@ -706,7 +1329,8 @@
       + D.subjects.map(function (s) { return '<option value="' + s.id + '"' + (ch.subjectId === s.id ? ' selected' : '') + '>' + U.esc(s.name) + '</option>'; }).join('') + '</select></div>'
       + '<div class="m-actions"><button class="btn warn" data-a="chain-del" data-id="' + ch.id + '" style="margin-right:auto">Delete chain</button>'
       + '<button class="btn" data-a="modal-close">Cancel</button>'
-      + '<button class="btn primary" data-a="chain-edit-ok" data-id="' + ch.id + '">Save</button></div>');
+      + '<button class="btn primary" data-a="chain-edit-ok" data-id="' + ch.id + '">Save</button></div>',
+      function (root) { enterSubmits(root, 'chain-edit-ok'); });
   };
   ACTIONS['chain-edit-ok'] = function (el) {
     var ch = Store.chainById(el.getAttribute('data-id'));
@@ -714,26 +1338,8 @@
     var t = document.getElementById('mTitle').value.trim();
     if (t) ch.title = t;
     ch.essayId = document.getElementById('mEssay').value || null;
+    if (ch.essayId) ch.folderId = null;
     ch.subjectId = document.getElementById('mSubj').value || null;
-    Store.save(); Modal.close(); App.render();
-  };
-  ACTIONS['essay-edit'] = function (el) {
-    var e = Store.essayById(el.getAttribute('data-id'));
-    if (!e) return;
-    var subs = Store.data().subjects;
-    Modal.open('<div class="m-title">Edit essay</div>'
-      + '<div class="m-row"><label class="m-lbl">Title</label><input class="m-input" id="mTitle" value="' + U.esc(e.title) + '"></div>'
-      + '<div class="m-row"><label class="m-lbl">Subject</label><select class="m-select" id="mSubj"><option value="">— none —</option>'
-      + subs.map(function (s) { return '<option value="' + s.id + '"' + (e.subjectId === s.id ? ' selected' : '') + '>' + U.esc(s.name) + '</option>'; }).join('') + '</select></div>'
-      + '<div class="m-actions"><button class="btn" data-a="modal-close">Cancel</button>'
-      + '<button class="btn primary" data-a="essay-edit-ok" data-id="' + e.id + '">Save</button></div>');
-  };
-  ACTIONS['essay-edit-ok'] = function (el) {
-    var e = Store.essayById(el.getAttribute('data-id'));
-    if (!e) return;
-    var t = document.getElementById('mTitle').value.trim();
-    if (t) e.title = t;
-    e.subjectId = document.getElementById('mSubj').value || null;
     Store.save(); Modal.close(); App.render();
   };
 
@@ -744,7 +1350,10 @@
       var ha = U.hold(a), hb = U.hold(b);
       return (ha ? ha.r : 1.01) - (hb ? hb.r : 1.01);
     });
-    App.startSession(q, { v: 'chain', id: ch.id }, 'Chain · ' + ch.title);
+    // Leaving a drill returns to wherever it was started from
+    var r = App.route;
+    var origin = (r.v === 'essay' || r.v === 'chains' || r.v === 'subject') ? JSON.parse(JSON.stringify(r)) : { v: 'chain', id: ch.id };
+    App.startSession(q, origin, ch.title);
   };
 
   /* --- Arrange game ----------------------------------------------------------- */
@@ -756,7 +1365,7 @@
       for (var i = idx.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = idx[i]; idx[i] = idx[j]; idx[j] = t; }
       AR = { chId: ch.id, pool: idx, placed: [], errors: 0 };
     }
-    var html = '<button class="bh-back" data-a="chain-open" data-id="' + ch.id + '">← ' + U.esc(ch.title) + '</button>'
+    var html = U.backLink('#/chain/' + encodeURIComponent(ch.id), ch.title)
       + '<div class="game-zone"><div class="gz-title">Arrange the chain</div>'
       + '<div class="gz-sub">Tap the keywords in their correct order. Mistakes shake — and count.</div>';
 
@@ -789,7 +1398,7 @@
         FX.toast(msg, AR.errors === 0 ? 'green' : 'amber');
         if (res.wentGreen) { FX.confetti(); }
         AR = null;
-        App.go({ v: 'chain', id: ch.id });
+        App.go({ v: 'chain', id: ch.id }, { replace: true });
         App.checkChainForged(ch);
         return;
       }
@@ -811,7 +1420,7 @@
     var ch = Store.chainById(route.id);
     if (!NL || NL.chId !== ch.id) NL = { chId: ch.id, i: 0, errors: 0, hints: 0 };
     var n = ch.sentences.length;
-    var html = '<button class="bh-back" data-a="chain-open" data-id="' + ch.id + '">← ' + U.esc(ch.title) + '</button>'
+    var html = U.backLink('#/chain/' + encodeURIComponent(ch.id), ch.title)
       + '<div class="game-zone"><div class="gz-title">Recall the chain</div>'
       + '<div class="gz-sub">Walk the whole chain from memory, link by link — starting from nothing, like on exam day. (' + (NL.i + 1) + '/' + n + ')</div>';
     if (NL.i === 0) {
@@ -859,7 +1468,7 @@
           FX.toast(miss === 0 ? 'Flawless — the whole chain from a cold start ⚓' : 'Chain walked — ' + NL.errors + ' errors, ' + NL.hints + ' hints.', miss === 0 ? 'green' : 'amber');
           if (res.wentGreen) FX.confetti();
           var id = NL.chId; NL = null;
-          App.go({ v: 'chain', id: id });
+          App.go({ v: 'chain', id: id }, { replace: true });
           App.checkChainForged(ch);
         } else App.render();
       }, 350);
@@ -877,7 +1486,7 @@
   V.recital = function (route) {
     var ch = Store.chainById(route.id);
     if (!RC || RC.chId !== ch.id) RC = { chId: ch.id, submitted: false, text: '', showSkel: false, graded: {} };
-    var html = '<button class="bh-back" data-a="chain-open" data-id="' + ch.id + '">← ' + U.esc(ch.title) + '</button>'
+    var html = U.backLink('#/chain/' + encodeURIComponent(ch.id), ch.title)
       + '<div class="game-zone"><div class="gz-title">Full recital</div>';
 
     if (!RC.submitted) {
@@ -942,7 +1551,7 @@
     FX.toast('Recital complete — ' + good + '/' + gs.length + ' sentences recalled.', good === gs.length ? 'green' : '');
     if (good === gs.length) FX.confetti();
     RC = null;
-    App.go({ v: 'chain', id: ch.id });
+    App.go({ v: 'chain', id: ch.id }, { replace: true });
     App.checkChainForged(ch);
   };
 
@@ -984,16 +1593,16 @@
     var got = 0, miss = 0;
     rows.forEach(function (r) { if (r.st) { got += r.st.got; miss += r.st.miss; } });
 
-    var html = '<div class="board-head"><div><div class="bh-title">Stats' + (selSubj ? ' · ' + U.esc(selSubj.name) : '') + '</div>'
-      + '<div class="bh-sub">Honest numbers. “Recall right now” can go down — that’s the point.</div></div></div>';
+    var html = '<div class="page-head"><div><div class="eyebrow">Progress</div><h1>Stats' + (selSubj ? ' · ' + U.esc(selSubj.name) : '') + '</h1>'
+      + '<div class="ph-sub">Honest numbers. “Recall right now” can go down — that’s the point.</div></div></div>';
 
     // per-subject filter
-    html += '<div class="navcard"><div class="topic-pills">'
-      + '<button class="tp-pill' + (!selId ? ' on' : '') + '" data-a="stats-subj" data-s="">All subjects</button>';
+    html += '<div class="tabs chips">'
+      + '<button class="tabp' + (!selId ? ' on' : '') + '" data-a="stats-subj" data-s="">All subjects</button>';
     D.subjects.forEach(function (s2) {
-      html += '<button class="tp-pill' + (selId === s2.id ? ' on' : '') + '" data-a="stats-subj" data-s="' + s2.id + '">' + U.esc(s2.name) + '</button>';
+      html += '<button class="tabp' + (selId === s2.id ? ' on' : '') + '" data-a="stats-subj" data-s="' + s2.id + '">' + U.esc(s2.name) + '</button>';
     });
-    html += '</div></div>';
+    html += '</div>';
 
     html += '<div class="statrow">'
       + statCard(total ? U.pct(verified, total) + '%' : '—', 'Anchored', 'var(--green)', verified + ' of ' + total + ' cards, 3+ recalls each')
@@ -1178,8 +1787,8 @@
     var D = Store.data();
     var s = D.settings;
     var cloudOn = window.Cloud && Cloud.isOn();
-    var html = '<div class="board-head"><div><div class="bh-title">Data &amp; settings</div>'
-      + '<div class="bh-sub">' + (cloudOn
+    var html = '<div class="page-head"><div><div class="eyebrow">Account, data &amp; study settings</div><h1>Settings</h1>'
+      + '<div class="ph-sub">' + (cloudOn
         ? 'Every change syncs to your account automatically. Exports still make good belt-and-braces backups.'
         : 'Your data lives on this device. Export regularly — it’s one tap.') + '</div></div></div>';
 
@@ -1198,13 +1807,13 @@
       + '<div class="m-actions" style="justify-content:flex-start"><button class="btn primary" data-a="set-save">Save settings</button></div></div>';
 
     html += '<div class="set-card"><div class="set-title">Subjects — share &amp; exam dates</div>'
-      + '<div class="set-desc">⇪ downloads a subject file you can send a mate (they import it from the Harbour). Exam dates compress scheduling as the day approaches.</div>';
+      + '<div class="set-desc">Share downloads a subject file you can send a mate (they import it from the Harbour). Exam dates compress scheduling as the day approaches.</div>';
     if (!D.subjects.length) html += '<div class="m-hint">No subjects yet.</div>';
     D.subjects.forEach(function (subj) {
       html += '<div class="set-row"><span class="set-lbl">' + U.esc(subj.name) + '</span>'
         + '<input class="set-input wide" type="date" data-exam="' + subj.id + '" value="' + (subj.examDate || '') + '">'
-        + '<button class="tool" title="Share / export this subject" data-a="share-subj" data-id="' + subj.id + '">⇪</button>'
-        + '<button class="tool" title="Delete subject" data-a="del-subj" data-id="' + subj.id + '">🗑</button></div>';
+        + '<button class="tool" title="Share / export this subject" data-a="share-subj" data-id="' + subj.id + '">' + U.icon('share') + '</button>'
+        + '<button class="tool" title="Delete subject" data-a="del-subj" data-id="' + subj.id + '">' + U.icon('trash') + '</button></div>';
     });
     if (D.subjects.length) html += '<div class="m-actions" style="justify-content:flex-start"><button class="btn primary" data-a="set-exams">Save exam dates</button></div>';
     html += '</div>';

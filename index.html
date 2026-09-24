@@ -9,49 +9,85 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/anchor.svg">
 <link rel="apple-touch-icon" href="icons/anchor.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="anchor.css">
 </head>
 <body>
 
-<div id="app">
-  <header class="topbar">
-    <button class="brand" data-a="home" title="Harbour — home">
-      <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true">
-        <circle cx="24" cy="10.5" r="4.4" fill="none" stroke="currentColor" stroke-width="3.4"/>
-        <line x1="24" y1="14.9" x2="24" y2="37" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
-        <line x1="15" y1="21.5" x2="33" y2="21.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
-        <path d="M10 29.5 C10 37 16 41.5 24 41.5 C32 41.5 38 37 38 29.5" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
-        <path d="M10 29.5 L6.5 26.5 M10 29.5 L13.8 27.4" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/>
-        <path d="M38 29.5 L41.5 26.5 M38 29.5 L34.2 27.4" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/>
-      </svg>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="anchor-mark" viewBox="0 0 48 48">
+    <circle cx="24" cy="10.5" r="4.4" fill="none" stroke="currentColor" stroke-width="3.4"/>
+    <line x1="24" y1="14.9" x2="24" y2="37" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+    <line x1="15" y1="21.5" x2="33" y2="21.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M10 29.5 C10 37 16 41.5 24 41.5 C32 41.5 38 37 38 29.5" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M10 29.5 L6.5 26.5 M10 29.5 L13.8 27.4" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M38 29.5 L41.5 26.5 M38 29.5 L34.2 27.4" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/>
+  </symbol>
+</svg>
+
+<div class="shell" id="app">
+  <aside class="sidebar" aria-label="Navigation">
+    <a class="brand" href="#/" title="Harbour — home">
+      <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true"><use href="#anchor-mark"/></svg>
       <span class="brand-name">Anchor</span>
-    </button>
-
-    <nav class="topnav" id="topnav">
-      <button class="tn-btn" data-a="home" data-nav="home">Harbour</button>
-      <button class="tn-btn" data-a="chains" data-nav="chains">Chains</button>
-      <button class="tn-btn" data-a="stats" data-nav="stats">Stats</button>
-      <button class="tn-btn" data-a="data" data-nav="data">Data</button>
+    </a>
+    <nav class="sb-nav">
+      <a class="sbn" href="#/" data-nav="home">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9v11h13V9"/><path d="M10 20v-5.5h4V20"/></svg>
+        <span>Harbour</span><span class="sbn-badge" id="navDueHome" hidden></span></a>
+      <a class="sbn" href="#/chains" data-nav="chains">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 1 0-5.66-5.66l-1.2 1.2"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 1 0 5.66 5.66l1.2-1.2"/></svg>
+        <span>Chains</span><span class="sbn-badge" id="navDueChains" hidden></span></a>
+      <a class="sbn" href="#/stats" data-nav="stats">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11"/><path d="M10 20V5"/><path d="M16 20v-8"/><path d="M3 20h18"/></svg>
+        <span>Stats</span></a>
+      <a class="sbn" href="#/settings" data-nav="data">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9"/><path d="M17 7h3"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>
+        <span>Settings</span></a>
     </nav>
+    <div class="sb-lib" id="sbLib"></div>
+  </aside>
 
-    <div class="top-right">
-      <button class="sync-chip" id="syncChip" data-a="data" hidden></button>
-      <div class="goal-chip" id="goalChip" title="Today's reviews vs your daily goal">
-        <svg viewBox="0 0 36 36" class="goal-ring">
-          <circle cx="18" cy="18" r="15" class="gr-track"/>
-          <circle cx="18" cy="18" r="15" class="gr-fill" id="goalRingFill"/>
-        </svg>
-        <span id="goalText">0/20</span>
-      </div>
-      <div class="streak-chip" id="streakChip" title="Study streak — days in a row hitting your review goal">
-        <span class="flame" aria-hidden="true">🔥</span><span id="streakN">0</span>
-      </div>
-      <button class="icon-btn" id="themeBtn" data-a="theme" title="Toggle light / dark">◐</button>
-    </div>
-  </header>
-
-  <main id="view" aria-live="polite"></main>
+  <div class="main">
+    <header class="mtop">
+      <a class="brand" href="#/" title="Harbour — home">
+        <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true"><use href="#anchor-mark"/></svg>
+        <span class="brand-name">Anchor</span>
+      </a>
+    </header>
+    <main id="view" aria-live="polite"></main>
+  </div>
 </div>
+
+<div class="status" id="status">
+  <button class="sync-chip" id="syncChip" data-a="data" hidden></button>
+  <div class="goal-chip" id="goalChip" title="Today's reviews vs your daily goal">
+    <svg viewBox="0 0 36 36" class="goal-ring">
+      <circle cx="18" cy="18" r="15" class="gr-track"/>
+      <circle cx="18" cy="18" r="15" class="gr-fill" id="goalRingFill"/>
+    </svg>
+    <span id="goalText">0/20</span>
+  </div>
+  <div class="streak-chip" id="streakChip" title="Study streak — days in a row hitting your review goal">
+    <span class="flame" aria-hidden="true">🔥</span><span id="streakN">0</span>
+  </div>
+  <button class="icon-btn" id="themeBtn" data-a="theme" title="Toggle light / dark">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/></svg>
+  </button>
+</div>
+
+<nav class="tabbar-m" aria-label="Sections">
+  <a class="tbm" href="#/" data-nav="home">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9v11h13V9"/><path d="M10 20v-5.5h4V20"/></svg><span>Harbour</span></a>
+  <a class="tbm" href="#/chains" data-nav="chains">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 1 0-5.66-5.66l-1.2 1.2"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 1 0 5.66 5.66l1.2-1.2"/></svg><span>Chains</span></a>
+  <a class="tbm" href="#/stats" data-nav="stats">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11"/><path d="M10 20V5"/><path d="M16 20v-8"/><path d="M3 20h18"/></svg><span>Stats</span></a>
+  <a class="tbm" href="#/settings" data-nav="data">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9"/><path d="M17 7h3"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg><span>Settings</span></a>
+</nav>
 
 <div id="toasts" aria-live="polite"></div>
 <div id="fx" aria-hidden="true"></div>

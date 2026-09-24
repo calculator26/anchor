@@ -1,34 +1,86 @@
 /* ============================================================================
-   Anchor · ui-main.js — router, harbour, subject board (Mode A),
-   session player, editors, boot. Loads last.
-   Content model the user sees: a subject has TABS, tabs hold CARDS.
+   Anchor · ui-main.js — router, app shell (sidebar + library), Harbour home,
+   subject boards, session player, editors, boot. Loads last.
+   Content model the user sees: folders hold subjects; a subject has TABS,
+   tabs hold CARDS. Essays hold paragraph CHAINS (see ui-extra.js).
+   Routes live in the URL hash, so the browser / phone back gesture works.
    ========================================================================== */
 (function () {
   'use strict';
 
   var REV = {};     // revealed cards in browse mode (not persisted)
   var TYPED = {};   // in-progress typed/dictated answers for text mode (not persisted)
+  var SCROLL = {};  // scroll position per route, restored on back/forward
+
+  /* ─── Router · route object ⇄ URL hash ───────────────────────────────── */
+  function toHash(r) {
+    var e = encodeURIComponent;
+    switch (r && r.v) {
+      case 'subject': return '#/subject/' + e(r.id) + (r.tab ? '/' + e(r.tab) : '');
+      case 'chains': return '#/chains';
+      case 'essay': return '#/essay/' + e(r.id);
+      case 'chain': return '#/chain/' + e(r.id);
+      case 'arrange': return '#/chain/' + e(r.id) + '/arrange';
+      case 'nextlink': return '#/chain/' + e(r.id) + '/recall';
+      case 'recital': return '#/chain/' + e(r.id) + '/recital';
+      case 'chainBuild': return '#/new-chain';
+      case 'session': return '#/session';
+      case 'stats': return '#/stats' + (r.s ? '/' + e(r.s) : '');
+      case 'data': return '#/settings';
+    }
+    return '#/';
+  }
+  function parseHash(h) {
+    var p;
+    try { p = (h || '').replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent); }
+    catch (e) { p = []; }
+    var a = p[0] || '';
+    if (a === 'subject' && p[1]) return { v: 'subject', id: p[1], tab: p[2] };
+    if (a === 'chains') return { v: 'chains' };
+    if (a === 'essay' && p[1]) return { v: 'essay', id: p[1] };
+    if (a === 'chain' && p[1]) {
+      var sub = { arrange: 'arrange', recall: 'nextlink', recital: 'recital' }[p[2]];
+      return { v: sub || 'chain', id: p[1] };
+    }
+    if (a === 'new-chain') return { v: 'chainBuild' };
+    if (a === 'session') return { v: 'session' };
+    if (a === 'stats') return { v: 'stats', s: p[1] };
+    if (a === 'settings' || a === 'data') return { v: 'data' };
+    return { v: 'home' };
+  }
 
   var App = window.App = {
     route: { v: 'home' },
     sess: null,
+    toHash: toHash,
 
-    go: function (route) {
+    go: function (route, opts) {
+      opts = opts || {};
+      var cur = location.hash || '#/';
+      SCROLL[cur] = window.scrollY;
       App.route = route;
       REV = {};
       TYPED = {};
-      window.scrollTo(0, 0);
+      var h = toHash(route);
+      if (h !== cur) {
+        try { history[opts.replace ? 'replaceState' : 'pushState'](null, '', h); }
+        catch (e) { location.hash = h; }
+      }
+      Menu.close();
       App.render();
+      window.scrollTo(0, 0);
     },
 
     render: function () {
       if (window.Cloud && Cloud.gated()) { Cloud.renderGate(); return; }
       document.body.classList.remove('gated');
+      Store.invalidate();
       var v = App.route.v, html = '';
       if (v === 'home') html = viewHome();
       else if (v === 'subject') html = viewSubject();
       else if (v === 'session') html = viewSession();
       else if (v === 'chains') html = V.chains();
+      else if (v === 'essay') html = V.essay(App.route);
       else if (v === 'chainBuild') html = V.chainBuild();
       else if (v === 'chain') html = V.chain(App.route);
       else if (v === 'arrange') html = V.arrange(App.route);
@@ -37,6 +89,7 @@
       else if (v === 'stats') html = V.stats(App.route);
       else if (v === 'data') html = V.data();
       document.getElementById('view').innerHTML = html;
+      document.body.classList.toggle('in-session', v === 'session');
       App.renderTop();
       afterRender();
     },
@@ -54,10 +107,12 @@
       var st = Store.streak();
       document.getElementById('streakN').textContent = st;
       document.getElementById('streakChip').classList.toggle('hot', st > 0);
-      var navMap = { home: 'home', subject: 'home', session: 'home', chains: 'chains', chainBuild: 'chains', chain: 'chains', arrange: 'chains', nextlink: 'chains', recital: 'chains', stats: 'stats', data: 'data' };
-      document.querySelectorAll('.tn-btn').forEach(function (b) {
-        b.classList.toggle('on', b.getAttribute('data-nav') === navMap[App.route.v]);
+      var navMap = { home: 'home', subject: 'home', session: 'home', chains: 'chains', essay: 'chains', chainBuild: 'chains', chain: 'chains', arrange: 'chains', nextlink: 'chains', recital: 'chains', stats: 'stats', data: 'data' };
+      var on = navMap[App.route.v];
+      document.querySelectorAll('[data-nav]').forEach(function (b) {
+        b.classList.toggle('on', b.getAttribute('data-nav') === on);
       });
+      renderSidebar();
     },
 
     // let other modules (chain link cards) check browse-reveal state
@@ -70,7 +125,8 @@
       App.sess = {
         q: keys.slice(0, 200), i: 0, revealed: false, typed: '', skipped: 0,
         got: 0, miss: 0, greens: 0, banked: 0, combo: 0, maxCombo: 0,
-        origin: origin || { v: 'home' }, label: label || 'Review', done: false
+        origin: origin || { v: 'home' }, label: label || 'Review', done: false,
+        prevHash: location.hash || '#/'
       };
       App.go({ v: 'session' });
     },
@@ -133,6 +189,7 @@
   };
 
   /* ─── Facet helpers ──────────────────────────────────────────────────── */
+  /* ─── Facet helpers ──────────────────────────────────────────────────── */
   function cardFacetKeys(subj, card) {
     return Store.cardModes(subj).filter(function (m) { return Store.facetText(card, m); })
       .map(function (m) { return 'f:' + card.id + ':' + m; });
@@ -151,92 +208,217 @@
     return out;
   }
 
+
+  /* ─── Back / forward ─────────────────────────────────────────────────── */
+  function onPop() {
+    var h = location.hash || '#/';
+    if (toHash(App.route) === h) return;                   // our own pushState, already rendered
+    SCROLL[toHash(App.route)] = window.scrollY;
+    var r = parseHash(h);
+    if (r.v === 'session' && !App.sess) { App.go({ v: 'home' }, { replace: true }); return; }
+    if (App.route.v === 'session' && r.v !== 'session') App.sess = null;
+    App.route = r;
+    REV = {}; TYPED = {};
+    Modal.close(); Menu.close();
+    App.render();
+    window.scrollTo(0, SCROLL[h] || 0);
+  }
+  window.addEventListener('popstate', onPop);
+  window.addEventListener('hashchange', onPop);
+
+  /* ─── Subject roll-ups (shared by home, sidebar and boards) ───────────── */
+  function subjTally(subj) {
+    var t = { n: 0, v: 0, a: 0, r: 0 };
+    Store.subjectFacets(subj).forEach(function (f) {
+      var st = Store.data().state[f.key];
+      t.n++;
+      if (Store.isVerified(f.key)) t.v++;
+      else if (st && (st.conf === 'a' || st.conf === 'g')) t.a++;
+      else if (st && st.conf === 'r') t.r++;
+    });
+    t.pct = U.pct(t.v, t.n);
+    return t;
+  }
+  function dueCounts() {
+    var out = { total: 0, chains: 0, subj: {} };
+    Store.dueFacets().forEach(function (d) {
+      out.total++;
+      if (d.ctx.kind === 'item') out.subj[d.ctx.subject.id] = (out.subj[d.ctx.subject.id] || 0) + 1;
+      else out.chains++;
+    });
+    return out;
+  }
+
   /* ══════════════════════════════════════════════════════════════════════
-     HOME / HARBOUR
+     SHELL · sidebar library (desktop)
+     ════════════════════════════════════════════════════════════════════ */
+  function renderSidebar() {
+    var lib = document.getElementById('sbLib');
+    if (!lib) return;
+    var D = Store.data(), r = App.route;
+    var due = dueCounts();
+    var hb = document.getElementById('navDueHome'), cb = document.getElementById('navDueChains');
+    var subjDue = due.total - due.chains;
+    if (hb) { hb.textContent = subjDue || ''; hb.hidden = !subjDue; }
+    if (cb) { cb.textContent = due.chains || ''; cb.hidden = !due.chains; }
+
+    var curSubj = r.v === 'subject' ? r.id : null;
+    var curEssay = r.v === 'essay' ? r.id : null;
+    if (!curEssay && (r.v === 'chain' || r.v === 'arrange' || r.v === 'nextlink' || r.v === 'recital')) {
+      var ch = Store.chainById(r.id);
+      if (ch) curEssay = ch.essayId;
+    }
+
+    function subjLink(s) {
+      return '<a class="sb-item' + (s.id === curSubj ? ' on' : '') + '" href="#/subject/' + encodeURIComponent(s.id) + '">'
+        + U.icon('book') + '<span class="sb-t">' + U.esc(s.name) + '</span>'
+        + (due.subj[s.id] ? '<span class="sb-due">' + due.subj[s.id] + '</span>' : '') + '</a>';
+    }
+    function essayLink(e) {
+      return '<a class="sb-item' + (e.id === curEssay ? ' on' : '') + '" href="#/essay/' + encodeURIComponent(e.id) + '">'
+        + U.icon('doc') + '<span class="sb-t">' + U.esc(e.title) + '</span></a>';
+    }
+    function tree(space, items, linkFn, kind) {
+      var html = '';
+      foldersIn(space).forEach(function (f) {
+        var kids = items.filter(function (x) { return x.folderId === f.id; });
+        var closed = Prefs.collapsed('sb:' + f.id);
+        html += '<div class="sb-folder' + (closed ? ' closed' : '') + '" data-drop="' + kind + '" data-folder="' + f.id + '">'
+          + '<button class="sb-item sb-fold" data-a="sb-toggle" data-id="' + f.id + '">' + U.icon('chevD', 'chev') + U.icon('folder')
+          + '<span class="sb-t">' + U.esc(f.name) + '</span><span class="sb-n">' + kids.length + '</span></button>'
+          + '<div class="sb-kids">' + kids.map(linkFn).join('') + '</div></div>';
+      });
+      items.filter(function (x) { return !validFolder(x.folderId, space); }).forEach(function (x) { html += linkFn(x); });
+      return html;
+    }
+
+    lib.innerHTML = '<div class="sb-h"><span>Subjects</span><button class="sb-add" data-a="subject-new" title="New subject">' + U.icon('plus') + '</button></div>'
+      + (D.subjects.length ? tree('subjects', D.subjects, subjLink, 'subject') : '<div class="sb-none">No subjects yet</div>')
+      + '<div class="sb-h"><span>Essays</span><button class="sb-add" data-a="essay-new" title="New essay">' + U.icon('plus') + '</button></div>'
+      + (D.essays.length ? tree('chains', D.essays, essayLink, 'essay') : '<div class="sb-none">No essays yet</div>');
+  }
+  ACTIONS['sb-toggle'] = function (el) { Prefs.toggle('sb:' + el.getAttribute('data-id')); renderSidebar(); };
+
+  /* ══════════════════════════════════════════════════════════════════════
+     HOME / HARBOUR — today, then your library of folders + subjects
      ════════════════════════════════════════════════════════════════════ */
   function viewHome() {
     var D = Store.data();
-    if (!D.subjects.length && !D.chains.length) return viewWelcome();
+    if (!D.subjects.length && !D.chains.length && !D.essays.length && !D.folders.length) return viewWelcome();
 
-    var due = Store.dueFacets();
-    var totalFacets = 0, verified = 0;
-    D.subjects.forEach(function (subj) {
-      Store.subjectFacets(subj).forEach(function (f) {
-        totalFacets++;
-        if (Store.isVerified(f.key)) verified++;
-      });
+    var due = dueCounts();
+    var tallies = {}, total = 0, verified = 0;
+    D.subjects.forEach(function (s) {
+      var t = tallies[s.id] = subjTally(s);
+      total += t.n; verified += t.v;
     });
+    var set = D.settings, act = Store.todayActivity(), goal = Math.max(1, set.dailyGoal);
+    var streak = Store.streak();
+    var hr = new Date().getHours();
+    var hello = hr < 5 ? 'Late one' : hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
 
-    var html = '<div class="h-title">Harbour</div>'
-      + '<div class="h-sub">' + new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
-      + ' · ' + verified + ' of ' + totalFacets + ' cards anchored</div>';
+    var html = '<div class="page-head"><div>'
+      + '<div class="eyebrow">' + new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }) + '</div>'
+      + '<h1>' + hello + '</h1>'
+      + '<div class="ph-sub"><b>' + verified + '</b> of ' + total + ' cards anchored across ' + U.plural(D.subjects.length, 'subject') + '.</div></div>'
+      + '<div class="ph-actions">'
+      + '<button class="btn" data-a="import">' + U.icon('upload') + '<span class="hide-sm">Import</span></button>'
+      + '<button class="btn" data-a="folder-new" data-space="subjects">' + U.icon('folderPlus') + 'Folder</button>'
+      + '<button class="btn primary" data-a="subject-new">' + U.icon('plus') + 'Subject</button></div></div>';
 
-    if (due.length) {
-      html += '<div class="due-callout"><div><div class="dc-txt">⚓ ' + due.length + ' ' + (due.length === 1 ? 'memory is' : 'memories are') + ' ready to strengthen</div>'
-        + '<div class="dc-sub">They’ve drifted to your ' + Math.round(D.settings.retention * 100) + '% line — one recall each locks them back in stronger.</div></div>'
-        + '<button class="btn primary" data-a="review-all">Strengthen now →</button></div>';
-    } else if (totalFacets) {
-      html += '<div class="due-callout" style="border-color:var(--green-line);border-left-color:var(--green)"><div><div class="dc-txt">🌊 Harbour’s calm — nothing due right now.</div>'
-        + '<div class="dc-sub">Browse ahead, build a chain, or add tomorrow’s content.</div></div></div>';
+    // Today strip
+    var gFrac = Math.min(1, act.n / goal);
+    var exams = D.subjects.filter(function (s) { var d = U.daysUntil(s.examDate); return d !== null && d >= 0; })
+      .sort(function (a, b) { return a.examDate < b.examDate ? -1 : 1; });
+    html += '<div class="today">'
+      + '<div class="tile hero' + (due.total ? ' hot' : '') + '"><div class="t-lbl">' + U.icon('bell', 'sm') + 'Ready to strengthen</div>'
+      + '<div class="t-big">' + due.total + '</div>'
+      + '<div class="t-sub">' + (due.total ? 'anchored ' + (due.total === 1 ? 'memory has' : 'memories have') + ' drifted to your ' + Math.round(set.retention * 100) + '% line'
+        : 'Harbour’s calm — every anchor is holding.') + '</div>'
+      + (due.total ? '<button class="btn primary" data-a="review-all">' + U.icon('play') + 'Review all</button>' : '') + '</div>'
+      + '<div class="tile"><div class="t-lbl">' + U.icon('target', 'sm') + 'Today</div>'
+      + '<div class="t-row"><svg viewBox="0 0 36 36" class="t-ring"><circle cx="18" cy="18" r="15" class="gr-track"/>'
+      + '<circle cx="18" cy="18" r="15" class="gr-fill" style="stroke-dashoffset:' + (94.2 * (1 - gFrac)).toFixed(1) + (act.n >= goal ? ';stroke:var(--green)' : '') + '"/></svg>'
+      + '<div><div class="t-mid">' + act.n + '<span>/' + goal + '</span></div><div class="t-sub">reviews today</div></div></div></div>'
+      + '<div class="tile"><div class="t-lbl">🔥 Streak</div><div class="t-mid">' + streak + '<span> ' + (streak === 1 ? 'day' : 'days') + '</span></div>'
+      + '<div class="t-sub">' + (streak ? 'hit ' + Math.min(10, goal) + '+ reviews again today to keep it' : 'do ' + Math.min(10, goal) + ' reviews to start one') + '</div></div>'
+      + '<div class="tile"><div class="t-lbl">' + U.icon('book', 'sm') + 'Next exam</div>'
+      + (exams.length
+        ? '<div class="t-mid">' + U.daysUntil(exams[0].examDate) + '<span> days</span></div><div class="t-sub">' + U.esc(exams[0].name) + ' · ' + U.fmtDate(exams[0].examDate) + '</div>'
+        : '<div class="t-sub" style="margin-top:8px">No upcoming exam dates. <a href="#/settings">Set them</a> to compress the schedule as the day nears.</div>')
+      + '</div></div>';
+
+    // Library — folders of subjects
+    var folders = foldersIn('subjects');
+    function subjGrid(fid) {
+      var list = D.subjects.filter(function (s) { return (validFolder(s.folderId, 'subjects') ? s.folderId : '') === fid; });
+      return { n: list.length, html: '<div class="sgrid" data-sort-list="subject" data-folder="' + fid + '" data-axis="grid">'
+        + list.map(function (s) { return subjCard(s, tallies[s.id], due.subj[s.id] || 0); }).join('') + '</div>' };
     }
+    html += '<div class="sec-title"><span>Subjects</span><span class="muted hide-sm">— drag to reorder or into folders</span></div>';
+    if (folders.length) {
+      html += '<div class="fsecs" data-sort-list="sfolder" data-axis="y">';
+      folders.forEach(function (f) {
+        var g = subjGrid(f.id);
+        html += U.folderSec(f, 'sfolder', 'subject', g.html, g.n, 'Empty folder — drag subjects in here, or use ⋯ → Move to folder.');
+      });
+      html += '</div>';
+    }
+    var loose = subjGrid('');
+    html += '<section class="fsec loose">'
+      + (folders.length ? '<div class="fsec-head plain" data-drop="subject" data-folder=""><span class="fsec-name">Not in a folder</span><span class="fsec-count">' + loose.n + '</span></div>' : '')
+      + '<div class="fsec-body">' + loose.html
+      + '<button class="add-tile" data-a="subject-new">' + U.icon('plus') + 'New subject</button></div></section>';
 
-    html += '<div class="subj-grid">';
-    D.subjects.forEach(function (subj) {
-      var fs = Store.subjectFacets(subj);
-      var v = fs.filter(function (f) { return Store.isVerified(f.key); }).length;
-      var pctv = U.pct(v, fs.length);
-      var dueN = Store.dueFacets(subj.id).length;
-      var exam = U.daysUntil(subj.examDate);
-      var C = 163.36;
-      html += '<button class="subj-card" data-a="subject" data-id="' + subj.id + '">'
-        + '<svg class="sc-ring" viewBox="0 0 60 60"><circle class="track" cx="30" cy="30" r="26"/>'
-        + '<circle class="fill" cx="30" cy="30" r="26" stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - pctv / 100)) + '"/>'
-        + '<text x="30" y="35" text-anchor="middle">' + pctv + '%</text></svg>'
-        + '<span style="min-width:0"><span class="sc-name">' + U.esc(subj.name) + '</span>'
-        + (subj.tagline ? '<span class="sc-tag" style="display:block">' + U.esc(subj.tagline) + '</span>' : '')
-        + '<span class="sc-meta">'
-        + (dueN ? '<span class="pill due">' + dueN + ' due</span>' : '<span class="pill">all held</span>')
-        + '<span class="pill">' + fs.length + ' cards</span>'
-        + (exam !== null ? '<span class="pill exam">' + (exam > 0 ? exam + 'd to exam' : 'exam day!') + '</span>' : '')
-        + '</span></span></button>';
-    });
-    html += '<button class="add-card" data-a="subject-new">＋ New subject</button>';
+    // Chains snapshot
+    var ct = ChainUI.tally(D.chains);
+    html += '<div class="sec-title"><span>Essays &amp; chains</span><a class="sec-link" href="#/chains">Open chains' + U.icon('chevR', 'sm') + '</a></div>';
+    html += '<div class="chain-snap"><div class="cs-main"><div class="cs-ic">' + U.icon('chain') + '</div><div>'
+      + '<div class="cs-t">' + U.plural(D.essays.length, 'essay') + ' · ' + U.plural(D.chains.length, 'chain') + '</div>'
+      + '<div class="cs-s">' + ct.v + '/' + ct.n + ' links anchored' + (due.chains ? ' · <span class="due-t">' + due.chains + ' fading</span>' : '') + '</div></div>'
+      + (due.chains ? '<button class="btn" data-a="chains-review">Review ' + due.chains + '</button>' : '') + '</div>';
+    if (D.essays.length) {
+      html += '<div class="cs-list">' + D.essays.slice(0, 8).map(function (e) {
+        var t = ChainUI.tally(window.essayChains(e));
+        return '<a class="cs-chip" href="#/essay/' + encodeURIComponent(e.id) + '">' + U.icon('doc', 'sm') + '<span>' + U.esc(e.title) + '</span>'
+          + '<em>' + U.pct(t.v, t.n) + '%</em></a>';
+      }).join('') + (D.essays.length > 8 ? '<a class="cs-chip more" href="#/chains">+' + (D.essays.length - 8) + ' more</a>' : '') + '</div>';
+    }
     html += '</div>';
-
-    if (D.chains.length) {
-      var chDue = 0;
-      D.chains.forEach(function (ch) {
-        Store.chainFacets(ch).forEach(function (f) {
-          var h = U.hold(f.key);
-          if (Store.isVerified(f.key) && h && h.due) chDue++;
-        });
-      });
-      html += '<div class="sec-head" style="margin-top:34px">Chains</div>'
-        + '<div class="due-callout" style="border-left-color:var(--accent);border-color:var(--line)"><div>'
-        + '<div class="dc-txt">⛓️ ' + D.chains.length + ' chain' + (D.chains.length > 1 ? 's' : '') + (chDue ? ' · <span style="color:var(--amber)">' + chDue + ' links fading</span>' : '') + '</div>'
-        + '<div class="dc-sub">Essay paragraphs, mastered in sequence.</div></div>'
-        + '<button class="btn" data-a="chains">Open chains →</button></div>';
-    }
     return html;
+  }
+
+  function subjCard(s, t, dueN) {
+    var exam = U.daysUntil(s.examDate);
+    var linked = Store.data().essays.filter(function (e) { return e.subjectId === s.id; }).length;
+    return '<div class="scard" data-sort="subject" data-id="' + s.id + '" data-a="subject" role="button" tabindex="0">'
+      + U.grip()
+      + U.ring(t.pct, 54)
+      + '<div class="sc-body"><div class="sc-name">' + U.esc(s.name) + '</div>'
+      + (s.tagline ? '<div class="sc-tag">' + U.esc(s.tagline) + '</div>' : '')
+      + '<div class="sc-meta">'
+      + (dueN ? '<span class="pill due">' + dueN + ' due</span>' : '')
+      + '<span class="pill">' + U.plural(t.n, 'card') + '</span>'
+      + (linked ? '<span class="pill">' + U.plural(linked, 'essay') + '</span>' : '')
+      + (exam !== null && exam >= 0 ? '<span class="pill exam">' + (exam > 0 ? exam + 'd to exam' : 'exam day') + '</span>' : '')
+      + '</div>'
+      + U.segbar([[t.v, 'var(--green)'], [t.a, 'var(--amber)'], [t.r, 'var(--red)']], t.n)
+      + '</div>'
+      + '<button class="kebab" data-a="subject-menu" data-id="' + s.id + '" title="Subject options">' + U.icon('dots') + '</button>'
+      + '</div>';
   }
 
   function viewWelcome() {
     return '<div class="welcome">'
-      + '<svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true">'
-      + '<circle cx="24" cy="10.5" r="4.4" fill="none" stroke="currentColor" stroke-width="3.4"/>'
-      + '<line x1="24" y1="14.9" x2="24" y2="37" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>'
-      + '<line x1="15" y1="21.5" x2="33" y2="21.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>'
-      + '<path d="M10 29.5 C10 37 16 41.5 24 41.5 C32 41.5 38 37 38 29.5" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>'
-      + '<path d="M10 29.5 L6.5 26.5 M10 29.5 L13.8 27.4" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/>'
-      + '<path d="M38 29.5 L41.5 26.5 M38 29.5 L34.2 27.4" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></svg>'
+      + '<svg class="brand-mark big" viewBox="0 0 48 48" aria-hidden="true"><use href="#anchor-mark"/></svg>'
       + '<div class="w-title">Memory that <em>holds</em>.</div>'
-      + '<div class="w-sub">Anchor is a self-directed memorisation system for high-stakes exams — built on the two study techniques with the strongest evidence in cognitive science, and honest enough to show you what you’d actually recall today.</div>'
+      + '<div class="w-sub">A self-directed memorisation system for high-stakes exams — built on the two study techniques with the strongest evidence in cognitive science, and honest enough to show you what you’d actually recall today.</div>'
       + '<div class="w-actions">'
       + '<button class="btn primary big" data-a="seed-load">Load Business Studies (HSC)</button>'
       + '<button class="btn big" data-a="subject-new">Start fresh</button></div>'
-      + '<div style="margin:-26px 0 34px"><button class="linklike" data-a="import">…or import a subject file from a mate</button></div>'
+      + '<div class="w-alt"><button class="linklike" data-a="import">…or import a subject file from a mate</button></div>'
       + '<div class="w-points">'
-      + '<div class="w-point"><b>🧠 Retrieval, not re-reading</b><span>Reveal-and-grade turns every glance into practice testing — the #1 rated technique (g≈0.6 for high-schoolers).</span></div>'
+      + '<div class="w-point"><b>🧠 Retrieval, not re-reading</b><span>Reveal-and-grade turns every glance into practice testing — the #1 rated technique.</span></div>'
       + '<div class="w-point"><b>📉 A real forgetting curve</b><span>FSRS-6 — the algorithm behind modern Anki — runs locally and knows when each fact will fade.</span></div>'
       + '<div class="w-point"><b>🟢 Green you can trust</b><span>A card is only anchored after three successful recalls — and it fades if you don’t come back.</span></div>'
       + '<div class="w-point"><b>⛓️ Essays as chains</b><span>One keyword per sentence. Master the order, then the links, then recite the lot.</span></div>'
@@ -248,7 +430,7 @@
   ACTIONS['stats'] = function () { App.go({ v: 'stats' }); };
   ACTIONS['stats-subj'] = function (el) {
     var s = el.getAttribute('data-s');
-    App.go(s ? { v: 'stats', s: s } : { v: 'stats' });
+    App.go(s ? { v: 'stats', s: s } : { v: 'stats' }, { replace: true });
   };
   ACTIONS['data'] = function () { App.go({ v: 'data' }); };
   ACTIONS['subject'] = function (el) { App.go({ v: 'subject', id: el.getAttribute('data-id') }); };
@@ -266,202 +448,249 @@
     var s = Store.data().settings;
     s.theme = s.theme === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', s.theme);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', s.theme === 'dark' ? '#0b0f17' : '#f3f5f9');
     Store.save();
+  };
+  ACTIONS['subject-menu'] = function (el) {
+    var id = el.getAttribute('data-id'), a = ' data-id="' + id + '"';
+    Menu.open(el, Menu.item('subject', 'Open', 'book', a)
+      + Menu.item('board-add', 'Add cards', 'plus', a)
+      + Menu.item('subject-edit', 'Edit subject', 'edit', a)
+      + Menu.item('move', 'Move to folder…', 'move', a + ' data-kind="subject"')
+      + Menu.item('essay-new', 'New essay for this subject', 'doc', ' data-subj="' + id + '"')
+      + Menu.item('share-subj', 'Share / export', 'share', a)
+      + Menu.sep()
+      + Menu.item('del-subj', 'Delete subject', 'trash', a, true));
+  };
+
+  /* ══════════════════════════════════════════════════════════════════════
+     STUDY CARD — shared by subject boards and chain pages
+     ════════════════════════════════════════════════════════════════════ */
+  window.gradeRow = function (key) {
+    return '<div class="after-row"><span class="grade-hint">Did you produce it?</span>'
+      + '<button class="gbtn g1" data-a="grade" data-k="' + key + '" data-g="1">✗ Missed</button>'
+      + '<button class="gbtn g2" data-a="grade" data-k="' + key + '" data-g="2">~ Shaky</button>'
+      + '<button class="gbtn g3" data-a="grade" data-k="' + key + '" data-g="3">✓ Got it</button>'
+      + '<button class="gbtn g4" data-a="grade" data-k="' + key + '" data-g="4">⚡ Instant</button>'
+      + '<button class="hide-link" data-a="hide" data-k="' + key + '">Hide</button></div>';
+  };
+
+  // o: {key, st, num, sort, sortId, term (html), ctx, body (html), tools (html)}
+  window.studyCard = function (o) {
+    var key = o.key, st = o.st;
+    var conf = st ? st.conf : null;
+    var got = st ? st.got : 0;
+    var hold = U.hold(key);
+    var verified = Store.isVerified(key);
+    var isDue = verified && hold && hold.due;
+    var CRIT = Store.GREEN_CRITERION;
+
+    var html = '<div class="item ' + U.stClass(key) + (isDue ? ' is-due' : '') + '" data-card="' + key + '" data-sort="' + o.sort + '" data-id="' + o.sortId + '" data-handle=".grip">';
+    html += '<div class="cell cell-term"><div class="term-top">' + U.grip() + '<span class="num">' + o.num + '</span>'
+      + (isDue ? '<span class="due-pill">' + U.icon('bell', 'xs') + 'Review due</span>' : '')
+      + (verified ? '<span class="ok-pill">⚓ Anchored</span>' : (got > 0 ? '<span class="pill" title="Successful recalls — ' + CRIT + ' anchors it">' + Math.min(got, CRIT) + '/' + CRIT + ' recalls</span>' : ''))
+      + '</div><div class="term">' + o.term + '</div>'
+      + (o.ctx ? '<div class="ctx">' + U.esc(o.ctx) + '</div>' : '') + '</div>';
+
+    html += '<div class="cell cell-content"><div class="tools">' + (o.tools || '') + '</div>' + o.body + '</div>';
+
+    html += '<div class="cell cell-meta">'
+      + '<div class="conf-btns" role="group" aria-label="Confidence">'
+      + '<button class="cbtn g' + (conf === 'g' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="g"><span class="cdot"></span>Know it' + (conf === 'g' && !verified && got < CRIT ? '<span class="unv">' + got + '/' + CRIT + '</span>' : '') + '</button>'
+      + '<button class="cbtn a' + (conf === 'a' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="a"><span class="cdot"></span>Getting there</button>'
+      + '<button class="cbtn r' + (conf === 'r' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="r"><span class="cdot"></span>Not yet</button>'
+      + '</div>';
+    if (hold) {
+      html += '<div class="hold"><div class="hold-line' + (isDue ? ' due' : '') + '">'
+        + (isDue ? 'Due — recall now ~' + hold.pct + '%' : 'Memory ' + hold.pct + '% · ~' + (hold.S < 1 ? '&lt;1' : Math.round(hold.S)) + 'd stability')
+        + '</div><div class="hold-bar"><div class="hold-fill" style="width:' + hold.pct + '%;background:' + U.holdColor(hold.r) + '"></div></div></div>';
+    }
+    var hist = st ? st.hist.slice(-8) : [];
+    html += '<div class="meta-foot"><span class="last">' + (st && st.srs ? U.ago(st.srs.last) : 'never reviewed') + '</span>'
+      + '<span class="hist-row">' + hist.map(function (h) { return '<span class="hdot ' + (h.g >= 3 ? 'g' : h.g === 2 ? 'a' : 'r') + '" title="' + U.fmtDate(h.t) + '"></span>'; }).join('') + '</span>'
+      + (st && (st.got || st.miss) ? '<span class="hist-score"><span class="hs-g">✓' + st.got + '</span><span class="hs-r">✗' + st.miss + '</span></span>' : '')
+      + '</div></div></div>';
+    return html;
   };
 
   /* ══════════════════════════════════════════════════════════════════════
      SUBJECT BOARD (Mode A) — tabs across the top, cards below.
      ════════════════════════════════════════════════════════════════════ */
+  function facetOf(subj) {
+    return subj.dual ? (Prefs.get('facet:' + subj.id) === 'key' ? 'key' : 'def') : 'card';
+  }
+  function currentTab(subj) {
+    return subj.tabs.filter(function (t) { return t.id === App.route.tab; })[0] || subj.tabs[0] || null;
+  }
+  function linkedTo(subj) {
+    var D = Store.data();
+    return {
+      essays: D.essays.filter(function (e) { return e.subjectId === subj.id; }),
+      chains: D.chains.filter(function (c) { return !c.essayId && c.subjectId === subj.id; })
+    };
+  }
+
   function viewSubject() {
     var subj = Store.subjectById(App.route.id);
-    if (!subj) return '<div class="empty">Subject not found.</div>';
-    if (!subj.tabs.length) {
-      return boardHead(subj) + '<div class="empty"><span class="big">🗺️</span>Empty board.<br>Make a tab for each area of the syllabus (e.g. “Finance — Role”), then fill it with cards.<br><br><button class="btn primary" data-a="board-add" data-id="' + subj.id + '">＋ Add your first tab</button></div>';
-    }
-
-    var tab = subj.tabs.filter(function (t) { return t.id === App.route.tab; })[0] || subj.tabs[0];
-    var facet = subj.dual ? (App.route.f === 'key' ? 'key' : 'def') : 'card';
-
-    var html = boardHead(subj);
-    html += subjectStats(subj);
-
-    // nav card: one row of tabs + review queue; second row only for dual style
-    html += '<div class="navcard"><div class="topic-pills">';
-    subj.tabs.forEach(function (t) {
-      var keys = tabFacetKeys(subj, t);
-      var v = keys.filter(Store.isVerified).length;
-      html += '<button class="tp-pill' + (t === tab ? ' on' : '') + '" data-a="board-tab" data-id="' + subj.id + '" data-t="' + t.id + '">'
-        + U.esc(t.name) + '<span class="fillbar" style="width:' + U.pct(v, keys.length) + '%"></span></button>'
-        + (t === tab ? '<button class="tool tp-tool" title="Rename or delete this tab" data-a="tab-edit" data-id="' + subj.id + '" data-t="' + t.id + '">✎</button>' : '');
-    });
+    if (!subj) return '<div class="empty"><div class="empty-t">Subject not found</div><div class="empty-acts"><a class="btn" href="#/">Back to the Harbour</a></div></div>';
+    var folder = validFolder(subj.folderId, 'subjects');
+    var linked = linkedTo(subj);
+    var nLinked = linked.essays.length + linked.chains.length;
+    var showLinked = App.route.tab === '_chains' && nLinked;
+    var tab = showLinked ? null : currentTab(subj);
+    var facet = facetOf(subj);
+    var t = subjTally(subj);
     var dueN = Store.dueFacets(subj.id).length;
-    html += '<button class="review-btn' + (dueN ? ' has-due' : '') + '" data-a="review-subject" data-id="' + subj.id + '">'
-      + '🔔 Review' + (dueN ? ' <span class="badge">' + dueN + '</span>' : '') + '</button>';
-    html += '</div>';
-    if (subj.dual) {
-      html += '<div class="nav2"><div class="unit-tabs"></div><div class="facet-toggle">'
-        + '<button class="ft-btn' + (facet === 'def' ? ' on' : '') + '" data-a="board-facet" data-f="def">Definitions</button>'
-        + '<button class="ft-btn' + (facet === 'key' ? ' on' : '') + '" data-a="board-facet" data-f="key">Key facts</button>'
-        + '</div></div>';
+    var exam = U.daysUntil(subj.examDate);
+
+    var html = U.crumbs([['Harbour', '#/']].concat(folder ? [[folder.name, '#/']] : []).concat([[subj.name]]));
+    html += '<div class="page-head"><div>'
+      + '<div class="eyebrow">' + U.icon('book', 'sm') + 'Subject'
+      + (exam !== null ? (exam > 0 ? ' · <b class="acc">' + exam + ' days to the exam</b>' : exam === 0 ? ' · <b class="warn-t">exam day — go get it</b>' : '') : ' · <button class="linklike" data-a="subject-edit" data-id="' + subj.id + '">set exam date</button>') + '</div>'
+      + '<h1>' + U.esc(subj.name) + '</h1>'
+      + (subj.tagline ? '<div class="ph-sub">' + U.esc(subj.tagline) + '</div>' : '') + '</div>'
+      + '<div class="ph-actions">'
+      + (dueN ? '<button class="btn due" data-a="review-subject" data-id="' + subj.id + '">' + U.icon('bell') + 'Review ' + dueN + '</button>' : '')
+      + '<button class="btn" data-a="board-add" data-id="' + subj.id + '">' + U.icon('plus') + 'Add cards</button>'
+      + '<button class="kebab lg" data-a="subject-menu" data-id="' + subj.id + '" title="Subject options">' + U.icon('dots') + '</button></div></div>';
+
+    if (t.n) {
+      html += '<div class="progress-strip">' + U.segbar([[t.v, 'var(--green)'], [t.a, 'var(--amber)'], [t.r, 'var(--red)']], t.n)
+        + '<div class="ps-legend"><span><i style="background:var(--green)"></i><b>' + t.v + '</b> anchored</span>'
+        + '<span><i style="background:var(--amber)"></i><b>' + t.a + '</b> getting there</span>'
+        + '<span><i style="background:var(--red)"></i><b>' + t.r + '</b> not yet</span>'
+        + '<span><i style="background:var(--line2)"></i><b>' + (t.n - t.v - t.a - t.r) + '</b> new</span>'
+        + '<span class="ps-pct">' + t.pct + '% anchored</span></div></div>';
     }
-    html += '</div>';
 
-    html += '<div class="board-tools"><span class="bt-lbl">Study style</span>' + window.studyModeToggle() + '</div>';
+    if (!subj.tabs.length && !nLinked) {
+      return html + '<div class="empty"><div class="empty-ic">' + U.icon('book') + '</div><div class="empty-t">An empty board</div>'
+        + 'Make a tab for each area of the syllabus (e.g. “Finance — Role”), then fill it with cards.'
+        + '<div class="empty-acts"><button class="btn primary" data-a="board-add" data-id="' + subj.id + '">Add your first cards</button>'
+        + '<button class="btn" data-a="essay-new" data-subj="' + subj.id + '">Start an essay</button></div></div>';
+    }
 
-    // cards, clustered under their (optional) group headings
-    var shown = 0, rated = 0, verifiedN = 0, num = 1, lastGroup = '~none~';
+    // Tab bar — drag tabs to reorder
+    html += '<div class="tabbar"><div class="tabs" data-sort-list="tab" data-axis="grid">';
+    subj.tabs.forEach(function (tb) {
+      var keys = tabFacetKeys(subj, tb);
+      var v = keys.filter(Store.isVerified).length;
+      html += '<button class="tabp' + (tb === tab ? ' on' : '') + '" data-sort="tab" data-id="' + tb.id + '" data-a="board-tab" data-t="' + tb.id + '">'
+        + '<span>' + U.esc(tb.name) + '</span><span class="tabp-fill" style="width:' + U.pct(v, keys.length) + '%"></span></button>';
+    });
+    html += '</div><div class="tabs-extra">'
+      + (nLinked ? '<button class="tabp linked' + (showLinked ? ' on' : '') + '" data-a="board-tab" data-t="_chains">' + U.icon('chain', 'sm') + 'Essays &amp; chains <em>' + nLinked + '</em></button>' : '')
+      + '<button class="tabp add" data-a="tab-new" title="New tab">' + U.icon('plus', 'sm') + 'Tab</button></div></div>';
+
+    if (showLinked) {
+      html += '<div class="board-bar"><div><h2>Essays &amp; chains</h2><div class="bb-sub">Linked to ' + U.esc(subj.name) + ' — manage them in Chains</div></div>'
+        + '<div class="bb-acts"><button class="btn sm" data-a="essay-new" data-subj="' + subj.id + '">' + U.icon('plus') + 'Essay</button></div></div>';
+      html += '<div class="cgrid">' + linked.essays.map(ChainUI.essayCard).join('') + linked.chains.map(ChainUI.chainCard).join('') + '</div>';
+      return html;
+    }
+    if (!tab) {
+      return html + '<div class="empty"><div class="empty-t">No tabs yet</div><div class="empty-acts"><button class="btn primary" data-a="tab-new">Create a tab</button></div></div>';
+    }
+
+    // Board bar — the current tab + how to study it
+    var tKeys = tabFacetKeys(subj, tab);
+    var tV = tKeys.filter(Store.isVerified).length;
+    html += '<div class="board-bar"><div><h2>' + U.esc(tab.name) + '</h2>'
+      + '<div class="bb-sub">' + tab.cards.length + ' cards · <b class="ok">' + tV + '/' + tKeys.length + '</b> anchored</div></div>'
+      + '<div class="bb-acts">'
+      + (subj.dual ? '<div class="seg" role="group" aria-label="Card side">'
+        + '<button class="seg-o' + (facet === 'def' ? ' on' : '') + '" data-a="board-facet" data-f="def">Definitions</button>'
+        + '<button class="seg-o' + (facet === 'key' ? ' on' : '') + '" data-a="board-facet" data-f="key">Key facts</button></div>' : '')
+      + window.studyModeToggle()
+      + '<button class="btn sm primary" data-a="study-tab">' + U.icon('play') + 'Study tab</button>'
+      + '<button class="kebab" data-a="tab-menu" data-id="' + subj.id + '" data-t="' + tab.id + '" title="Tab options">' + U.icon('dots') + '</button>'
+      + '</div></div>';
+
+    // Cards, clustered under their (optional) group headings
+    var runs = [], cur = null;
     tab.cards.forEach(function (card) {
       if (!Store.facetText(card, facet)) return;
-      var grp = card.group || null;
-      if (grp !== lastGroup) {
-        lastGroup = grp;
-        if (grp) {
-          var gKeys = groupFacetKeys(subj, tab, grp);
-          var gDone = gKeys.length && gKeys.every(Store.isVerified);
-          html += '<div class="sec-head"><span>' + U.esc(grp) + '</span>'
-            + '<span class="shp">' + tab.cards.filter(function (c) { return (c.group || null) === grp && Store.facetText(c, facet); }).map(function (c) {
-              var k = 'f:' + c.id + ':' + facet;
-              var st = Store.data().state[k];
-              var cls = !st || !st.conf ? '' : st.conf === 'g' ? (Store.isVerified(k) ? 'g' : 'gu') : st.conf === 'a' ? 'a' : 'r';
-              return '<i class="' + cls + '"></i>';
-            }).join('') + '</span>'
-            + (gDone ? '<span class="sec-badge">⚓ anchored</span>' : '')
-            + '<button class="tool" title="Focus session on this group" data-a="drill-group" data-id="' + subj.id + '" data-t="' + tab.id + '" data-g="' + U.esc(grp) + '">▶</button>'
-            + '</div>';
-        } else {
-          html += '<div class="sec-head"><span>&nbsp;</span></div>';
-        }
+      var g = card.group || '';
+      if (!cur || cur.g !== g) { cur = { g: g, cards: [] }; runs.push(cur); }
+      cur.cards.push(card);
+    });
+    var anyGroup = runs.some(function (r) { return r.g; });
+    var num = 1;
+    runs.forEach(function (run) {
+      var gKeys = run.cards.map(function (c) { return 'f:' + c.id + ':' + facet; });
+      var gDone = gKeys.every(Store.isVerified);
+      html += '<div class="grp">';
+      if (run.g || anyGroup) {
+        html += '<div class="grp-head"><span class="grp-name">' + (run.g ? U.esc(run.g) : 'Ungrouped') + '</span>'
+          + '<span class="shp">' + gKeys.map(function (k) {
+            var st = Store.data().state[k];
+            var cls = !st || !st.conf ? '' : st.conf === 'g' ? (Store.isVerified(k) ? 'g' : 'gu') : st.conf === 'a' ? 'a' : 'r';
+            return '<i class="' + cls + '"></i>';
+          }).join('') + '</span>'
+          + (gDone ? '<span class="sec-badge">⚓ anchored</span>' : '')
+          + '<button class="btn xs" title="Study just this group" data-a="drill-group" data-id="' + subj.id + '" data-t="' + tab.id + '" data-g="' + U.esc(run.g) + '">' + U.icon('play') + 'Drill</button>'
+          + '</div>';
       }
-      html += itemCard(subj, tab, card, facet, num++);
-      shown++;
-      var st = Store.data().state['f:' + card.id + ':' + facet];
-      if (st && st.conf) rated++;
-      if (Store.isVerified('f:' + card.id + ':' + facet)) verifiedN++;
+      html += '<div class="cards" data-sort-list="card" data-group="' + U.esc(run.g) + '" data-axis="y">';
+      run.cards.forEach(function (card) { html += itemCard(subj, tab, card, facet, num++); });
+      html += '</div></div>';
     });
-    if (!shown) html += '<div class="empty">No cards in this tab yet.<br><br><button class="btn primary" data-a="board-add" data-id="' + subj.id + '">＋ Add cards</button></div>';
+    if (num === 1) html += '<div class="empty"><div class="empty-t">No cards in this tab yet</div><div class="empty-acts"><button class="btn primary" data-a="board-add" data-id="' + subj.id + '">Add cards</button></div></div>';
 
-    html += '<div class="board-foot"><span class="prog-lbl">' + rated + ' / ' + shown + ' rated · <b style="color:var(--green)">' + verifiedN + ' anchored</b></span>'
-      + '<div class="prog-wrap"><div class="pbar"><div class="pbar-fill green" style="width:' + U.pct(verifiedN, shown) + '%"></div></div>'
-      + '<span class="prog-lbl">' + U.pct(verifiedN, shown) + '%</span></div></div>';
+    html += '<div class="board-foot"><button class="btn" data-a="board-add" data-id="' + subj.id + '">' + U.icon('plus') + 'Add cards to ' + U.esc(tab.name) + '</button>'
+      + '<span class="muted">Drag ⋮⋮ to reorder cards — drop a card under another heading to regroup it.</span></div>';
     return html;
-  }
-
-  function boardHead(subj) {
-    var exam = U.daysUntil(subj.examDate);
-    return '<button class="bh-back" data-a="home">← Harbour</button>'
-      + '<div class="board-head"><div><div class="bh-title">' + U.esc(subj.name) + '</div>'
-      + '<div class="bh-sub">' + (subj.tagline ? U.esc(subj.tagline) + ' · ' : '')
-      + (exam !== null ? (exam > 0 ? '<b style="color:var(--accent)">' + exam + ' days to the exam</b>' : '<b style="color:var(--amber)">exam day — go get it</b>') : '<button class="linklike" data-a="subject-edit" data-id="' + subj.id + '">set exam date</button>')
-      + '</div></div>'
-      + '<div class="bh-actions">'
-      + '<button class="btn" data-a="board-add" data-id="' + subj.id + '">＋ Add cards</button>'
-      + '<button class="btn" data-a="share-subj" data-id="' + subj.id + '">⇪ Share</button>'
-      + '<button class="btn" data-a="subject-edit" data-id="' + subj.id + '">✎ Edit</button>'
-      + '</div></div>';
-  }
-
-  function subjectStats(subj) {
-    var fs = Store.subjectFacets(subj);
-    var c = { v: 0, a: 0, r: 0, u: 0 };
-    fs.forEach(function (f) {
-      var st = Store.data().state[f.key];
-      if (Store.isVerified(f.key)) c.v++;
-      else if (st && (st.conf === 'a' || st.conf === 'g')) c.a++;   // in progress (incl. green-tagged but unproven)
-      else if (st && st.conf === 'r') c.r++;
-      else c.u++;
-    });
-    var dueN = Store.dueFacets(subj.id).length;
-    function sc(n, lbl, color, sub) {
-      return '<div class="stat"><div class="n" style="color:' + color + '">' + n + '</div>'
-        + '<div class="l"><span class="dot" style="background:' + color + '"></span>' + lbl + '</div><div class="sub">' + sub + '</div></div>';
-    }
-    return '<div class="statrow">'
-      + sc(c.v, 'Anchored', 'var(--green)', '3+ successful recalls')
-      + sc(c.a, 'Getting there', 'var(--amber)', 'keep recalling — 3 anchors it')
-      + sc(c.r, 'Not yet', 'var(--red)', 'honest starting point')
-      + sc(c.u, 'New', 'var(--text3)', 'not touched yet')
-      + '<div class="stat click' + (dueN ? ' hot' : '') + '" data-a="review-subject" data-id="' + subj.id + '"><div class="n">' + dueN + '</div>'
-      + '<div class="l">⚓ Due for review</div><div class="sub">' + (dueN ? 'anchored cards fading — tap to strengthen' : 'all anchors holding strong') + '</div></div>'
-      + '</div>';
   }
 
   function itemCard(subj, tab, card, facet, num) {
     var key = 'f:' + card.id + ':' + facet;
     var st = Store.data().state[key];
-    var conf = st ? st.conf : null;
-    var got = st ? st.got : 0;
-    var hold = U.hold(key);
-    var isDue = hold && hold.due;
-    var revealed = !!REV[key];
-    var verified = Store.isVerified(key);
-    var CRIT = Store.GREEN_CRITERION;
-
-    var html = '<div class="item ' + U.stClass(key) + '" data-card="' + key + '">';
-
-    // term cell
-    html += '<div class="cell cell-term"><div class="term-top"><span class="num">' + num + '</span>'
-      + (isDue ? '<span class="due-pill">⚓ Review due</span>' : '')
-      + (!verified && got > 0 && got < CRIT ? '<span class="pill" title="Successful recalls — ' + CRIT + ' anchors it">⚓ ' + got + '/' + CRIT + '</span>' : '')
-      + '</div>'
-      + '<div class="term">' + U.esc(card.term) + '</div></div>';
-
-    // content cell
-    html += '<div class="cell cell-content">'
-      + '<div class="tools"><button class="tool" title="Edit this card" data-a="card-edit" data-id="' + card.id + '" data-subj="' + subj.id + '">✎</button></div>';
-    if (!revealed) {
-      if (window.textMode()) {
-        html += window.typeZoneHTML(key);
-      } else {
+    var body;
+    if (!REV[key]) {
+      if (window.textMode()) body = window.typeZoneHTML(key);
+      else {
         var revLbl = facet === 'def' ? 'definition' : facet === 'key' ? 'key facts' : 'answer';
-        html += '<div class="hidden-panel" data-a="reveal" data-k="' + key + '">👁 Reveal ' + revLbl + ' — say it or whiteboard it first</div>';
+        body = '<button class="hidden-panel" data-a="reveal" data-k="' + key + '">' + U.icon('chevR', 'sm') + 'Reveal ' + revLbl + ' — say it or write it first</button>';
       }
     } else {
-      html += (window.textMode() ? window.producedHTML(key) : '')
+      body = (window.textMode() ? window.producedHTML(key) : '')
         + '<div class="c-text">' + U.esc(Store.facetText(card, facet)) + '</div>'
         + (card.note ? '<div class="note-box"><span class="note-lbl">Note</span><span>' + U.esc(card.note) + '</span></div>' : '')
-        + '<div class="after-row"><span class="grade-hint">Did you produce it?</span>'
-        + '<button class="gbtn g1" data-a="grade" data-k="' + key + '" data-g="1">✗ Missed</button>'
-        + '<button class="gbtn g2" data-a="grade" data-k="' + key + '" data-g="2">~ Shaky</button>'
-        + '<button class="gbtn g3" data-a="grade" data-k="' + key + '" data-g="3">✓ Got it</button>'
-        + '<button class="gbtn g4" data-a="grade" data-k="' + key + '" data-g="4">⚡ Instant</button>'
-        + '<button class="hide-link" data-a="hide" data-k="' + key + '">Hide</button></div>';
+        + window.gradeRow(key);
     }
-    html += '</div>';
-
-    // meta cell
-    html += '<div class="cell cell-meta"><div class="meta-lbl">Confidence' + (verified ? ' <span style="color:var(--green)">⚓</span>' : '') + '</div>'
-      + '<div class="conf-btns">'
-      + '<button class="cbtn g' + (conf === 'g' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="g"><span class="cdot"></span>Know it' + (conf === 'g' && !verified && got < CRIT ? '<span class="unv">' + got + '/' + CRIT + '</span>' : '') + '</button>'
-      + '<button class="cbtn a' + (conf === 'a' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="a"><span class="cdot"></span>Getting there</button>'
-      + '<button class="cbtn r' + (conf === 'r' ? ' on' : '') + '" data-a="conf" data-k="' + key + '" data-c="r"><span class="cdot"></span>Not yet</button>'
-      + '</div>';
-
-    if (hold) {
-      var col = U.holdColor(hold.r);
-      html += '<div class="hold-line' + (isDue ? ' due' : '') + '">'
-        + (isDue ? '⚓ Due — recall now ~' + hold.pct + '%' : 'Holding ' + hold.pct + '% · ~' + (hold.S < 1 ? '&lt;1' : Math.round(hold.S)) + 'd stability')
-        + '</div><div class="hold-bar"><div class="hold-fill" style="width:' + hold.pct + '%;background:' + col + '"></div></div>';
-    }
-
-    html += '<div class="hold-line" style="color:var(--text3)">🕒 ' + (st && st.srs ? 'Last reviewed ' + U.ago(st.srs.last) : 'Never reviewed') + '</div>';
-
-    var hist = st ? st.hist.slice(-7) : [];
-    html += '<div class="hist-row">' + (hist.length
-      ? hist.map(function (h) { return '<span class="hdot ' + (h.g >= 3 ? 'g' : h.g === 2 ? 'a' : 'r') + '" title="' + U.fmtDate(h.t) + '"></span>'; }).join('')
-      : '<span class="hist-none">no attempts yet</span>') + '</div>';
-    if (st && (st.got || st.miss)) {
-      html += '<div class="hist-score"><span class="' + (st.got ? 'hs-g' : 'hs-z') + '">✓ ' + st.got + '</span>'
-        + '<span class="' + (st.miss ? 'hs-r' : 'hs-z') + '">✗ ' + st.miss + '</span></div>';
-    }
-    html += '</div></div>';
-    return html;
+    return window.studyCard({
+      key: key, st: st, num: num, sort: 'card', sortId: card.id,
+      term: U.esc(card.term), body: body,
+      tools: '<button class="tool" title="Edit this card" data-a="card-edit" data-id="' + card.id + '" data-subj="' + subj.id + '">' + U.icon('edit') + '</button>'
+    });
   }
 
+  Sortable.on('tab', function (info) {
+    var subj = Store.subjectById(App.route.id);
+    if (subj && info.list) Store.reorderIn(subj.tabs, info.ids);
+    App.render();
+  });
+  Sortable.on('card', function (info) {
+    var subj = Store.subjectById(App.route.id);
+    var tab = subj && currentTab(subj);
+    if (!tab || !info.list) { App.render(); return; }
+    var card = tab.cards.filter(function (c) { return c.id === info.id; })[0];
+    if (card) {
+      var g = info.list.getAttribute('data-group') || '';
+      if (g) card.group = g; else delete card.group;
+    }
+    var ids = Array.prototype.map.call(document.querySelectorAll('#view [data-sort="card"]'), function (el) { return el.getAttribute('data-id'); });
+    Store.reorderIn(tab.cards, ids);
+    Store.save();
+    App.render();
+  });
+
   ACTIONS['board-tab'] = function (el) {
-    App.go({ v: 'subject', id: el.getAttribute('data-id'), tab: el.getAttribute('data-t'), f: App.route.f });
+    App.go({ v: 'subject', id: App.route.id, tab: el.getAttribute('data-t') }, { replace: true });
   };
   ACTIONS['board-facet'] = function (el) {
-    App.route.f = el.getAttribute('data-f');
+    Prefs.set('facet:' + App.route.id, el.getAttribute('data-f'));
     REV = {};
     App.render();
   };
@@ -502,22 +731,57 @@
     var subj = Store.subjectById(id);
     var due = Store.dueFacets(id).map(function (d) { return d.key; });
     if (!due.length) {
-      FX.toast('Nothing due in ' + subj.name + ' — your anchored cards are all holding above ' + Math.round(Store.data().settings.retention * 100) + '%.', 'green');
+      FX.toast('Nothing due in ' + U.esc(subj.name) + ' — your anchored cards are all holding above ' + Math.round(Store.data().settings.retention * 100) + '%.', 'green');
       return;
     }
-    App.startSession(due, { v: 'subject', id: id }, subj.name + ' · review');
+    App.startSession(due, { v: 'subject', id: id, tab: App.route.tab }, subj.name + ' · review');
   };
 
+  // Study the whole tab: unanchored cards first (in board order), then the weakest anchored ones.
+  ACTIONS['study-tab'] = function () {
+    var subj = Store.subjectById(App.route.id);
+    var tab = subj && currentTab(subj);
+    if (!tab) return;
+    var keys = tabFacetKeys(subj, tab).filter(function (k) { return k.split(':')[2] === facetOf(subj) || !subj.dual; });
+    var todo = keys.filter(function (k) { return !Store.isVerified(k); });
+    var held = keys.filter(Store.isVerified).sort(function (a, b) { return U.hold(a).r - U.hold(b).r; });
+    App.startSession(todo.concat(held), { v: 'subject', id: subj.id, tab: tab.id }, tab.name);
+  };
+
+  ACTIONS['tab-menu'] = function (el) {
+    var a = ' data-id="' + el.getAttribute('data-id') + '" data-t="' + el.getAttribute('data-t') + '"';
+    Menu.open(el, Menu.item('tab-edit', 'Rename tab', 'edit', a)
+      + Menu.item('board-add', 'Add cards', 'plus', ' data-id="' + el.getAttribute('data-id') + '"')
+      + Menu.sep()
+      + Menu.item('tab-del', 'Delete tab', 'trash', a, true));
+  };
+  ACTIONS['tab-new'] = function () {
+    Modal.open('<div class="m-title">New tab</div>'
+      + '<div class="m-sub">One tab per area of the syllabus — e.g. “Finance — Role”.</div>'
+      + '<div class="m-row"><input class="m-input" id="mTabName" maxlength="80" placeholder="Tab name"></div>'
+      + '<div class="m-actions"><button class="btn" data-a="modal-close">Cancel</button>'
+      + '<button class="btn primary" data-a="tab-new-ok">Create tab</button></div>',
+      function (root) { enterSubmits(root, 'tab-new-ok'); });
+  };
+  ACTIONS['tab-new-ok'] = function () {
+    var subj = Store.subjectById(App.route.id);
+    var name = document.getElementById('mTabName').value.trim();
+    if (!subj || !name) { FX.toast('Give the tab a name.', 'amber'); return; }
+    var tab = Store.addTab(subj, name);
+    Modal.close();
+    App.go({ v: 'subject', id: subj.id, tab: tab.id }, { replace: true });
+  };
   ACTIONS['tab-edit'] = function (el) {
     var subj = Store.subjectById(el.getAttribute('data-id'));
     var tab = subj.tabs.filter(function (t) { return t.id === el.getAttribute('data-t'); })[0];
     if (!tab) return;
-    Modal.open('<div class="m-title">Edit tab</div>'
+    Modal.open('<div class="m-title">Rename tab</div>'
       + '<div class="m-row"><label class="m-lbl">Tab name</label><input class="m-input" id="mTabName" value="' + U.esc(tab.name) + '"></div>'
       + '<div class="m-hint">Deleting a tab removes its ' + tab.cards.length + ' cards and their study history.</div>'
       + '<div class="m-actions"><button class="btn warn" data-a="tab-del" data-id="' + subj.id + '" data-t="' + tab.id + '" style="margin-right:auto">Delete tab</button>'
       + '<button class="btn" data-a="modal-close">Cancel</button>'
-      + '<button class="btn primary" data-a="tab-edit-ok" data-id="' + subj.id + '" data-t="' + tab.id + '">Save</button></div>');
+      + '<button class="btn primary" data-a="tab-edit-ok" data-id="' + subj.id + '" data-t="' + tab.id + '">Save</button></div>',
+      function (root) { enterSubmits(root, 'tab-edit-ok'); });
   };
   ACTIONS['tab-edit-ok'] = function (el) {
     var subj = Store.subjectById(el.getAttribute('data-id'));
@@ -534,7 +798,7 @@
     if (!tab) return;
     Modal.confirm('Delete “' + tab.name + '”?', 'Its ' + tab.cards.length + ' cards and their study history will be permanently removed.', 'Delete tab', true, function () {
       Store.deleteTab(subj, tabId);
-      App.go({ v: 'subject', id: subj.id });
+      App.go({ v: 'subject', id: subj.id }, { replace: true });
     });
   };
 
@@ -542,12 +806,12 @@
     var subj = Store.subjectById(el.getAttribute('data-id'));
     var tab = subj.tabs.filter(function (t) { return t.id === el.getAttribute('data-t'); })[0];
     if (!tab) return;
-    var keys = groupFacetKeys(subj, tab, el.getAttribute('data-g'));
+    var keys = groupFacetKeys(subj, tab, el.getAttribute('data-g') || null);
     keys.sort(function (a, b) {
       var ha = U.hold(a), hb = U.hold(b);
       return (ha ? ha.r : -1) - (hb ? hb.r : -1);
     });
-    App.startSession(keys, { v: 'subject', id: subj.id, tab: tab.id }, el.getAttribute('data-g'));
+    App.startSession(keys, { v: 'subject', id: subj.id, tab: tab.id }, el.getAttribute('data-g') || tab.name);
   };
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -582,7 +846,8 @@
     var s = App.sess;
     if (!s) return '<div class="empty">No session running.</div>';
     var html = '<div class="session"><div class="sess-top">'
-      + '<button class="sess-close" data-a="sess-exit" title="End session">✕</button>'
+      + '<button class="sess-close" data-a="sess-exit" title="End session (Esc)">' + U.icon('x') + '</button>'
+      + '<span class="sess-label">' + U.esc(s.label) + '</span>'
       + '<div class="pbar" style="flex:1"><div class="pbar-fill" style="width:' + U.pct(s.i, s.q.length) + '%"></div></div>'
       + '<span class="sess-count">' + Math.min(s.i + 1, s.q.length) + ' / ' + s.q.length + '</span>'
       + '<span class="combo' + (s.combo >= 3 ? ' hot' : '') + '" id="comboEl">' + (s.combo >= 2 ? '×' + s.combo + ' combo' : '') + '</span>'
@@ -646,7 +911,7 @@
       + ((s.skipped || 0) > 0 ? '<div class="ss-stat"><div class="n" style="color:var(--text3)">' + s.skipped + '</div><div class="l">skipped</div></div>' : '')
       + '</div>'
       + '<div class="m-actions" style="justify-content:center">'
-      + '<button class="btn primary big" data-a="sess-exit">Back to the board</button>'
+      + '<button class="btn primary big" data-a="sess-exit">Done</button>'
       + '</div></div></div>';
   }
 
@@ -711,13 +976,17 @@
     var s = App.sess;
     var origin = s ? s.origin : { v: 'home' };
     App.sess = null;
-    App.go(origin);
+    // Step back through history when the session was started from its origin,
+    // so the back button doesn't bounce you into a finished session.
+    if (s && s.prevHash === toHash(origin) && location.hash === '#/session') history.back();
+    else App.go(origin, { replace: true });
   };
 
   /* ══════════════════════════════════════════════════════════════════════
      EDITORS — subjects, tabs, cards, bulk paste
      ════════════════════════════════════════════════════════════════════ */
-  ACTIONS['subject-new'] = function () {
+  ACTIONS['subject-new'] = function (el) {
+    var fid = (el && el.getAttribute && el.getAttribute('data-folder')) || '';
     Modal.open('<div class="m-title">New subject</div>'
       + '<div class="m-sub">A subject holds tabs (one per syllabus area), and tabs hold cards. That’s the whole structure.</div>'
       + '<div class="m-row"><label class="m-lbl">Name</label><input class="m-input" id="mName" placeholder="e.g. Legal Studies"></div>'
@@ -727,7 +996,8 @@
       + '<option value="1">Dual — definition + key facts per term (Business-Studies style)</option>'
       + '</select></div>'
       + '<div class="m-row"><label class="m-lbl">Exam date (optional — powers the countdown &amp; schedule compression)</label><input class="m-input" type="date" id="mExam"></div>'
-      + '<div class="m-actions"><button class="btn" data-a="import" style="margin-right:auto">⬆ Import a file instead</button>'
+      + folderSelect('subjects', fid)
+      + '<div class="m-actions"><button class="btn" data-a="import" style="margin-right:auto">' + U.icon('upload') + 'Import a file instead</button>'
       + '<button class="btn" data-a="modal-close">Cancel</button>'
       + '<button class="btn primary" data-a="subject-new-ok">Create subject</button></div>');
   };
@@ -736,6 +1006,8 @@
     if (!name) return;
     var subj = Store.addSubject(name, document.getElementById('mTag').value.trim(),
       document.getElementById('mExam').value || null, document.getElementById('mDual').value === '1');
+    var fid = readFolderSelect();
+    if (fid) { subj.folderId = fid; Store.save(); }
     Modal.close();
     FX.toast('Subject created ⚓', 'green');
     App.go({ v: 'subject', id: subj.id });
@@ -751,6 +1023,7 @@
       + '<option value="0"' + (subj.dual ? '' : ' selected') + '>Simple flashcards — front / back</option>'
       + '<option value="1"' + (subj.dual ? ' selected' : '') + '>Dual — definition + key facts</option>'
       + '</select><div class="m-hint">Switching style keeps your cards; scheduling continues per side that still exists.</div></div>'
+      + folderSelect('subjects', subj.folderId)
       + '<div class="m-actions"><button class="btn warn" data-a="del-subj" data-id="' + subj.id + '" style="margin-right:auto">Delete</button>'
       + '<button class="btn" data-a="modal-close">Cancel</button>'
       + '<button class="btn primary" data-a="subject-edit-ok" data-id="' + subj.id + '">Save</button></div>');
@@ -762,6 +1035,8 @@
     subj.tagline = document.getElementById('mTag').value.trim();
     subj.examDate = document.getElementById('mExam').value || null;
     subj.dual = document.getElementById('mDual').value === '1';
+    var fid = readFolderSelect();
+    if (fid !== undefined) subj.folderId = fid;
     Store.save();
     Modal.close();
     App.render();
@@ -885,7 +1160,7 @@
       ADDRUN = null;
       Modal.close();
       FX.toast(added + ' cards added — go earn the green ⚓', 'green');
-      App.go({ v: 'subject', id: subj.id, tab: tab.id, f: App.route.f });
+      App.go({ v: 'subject', id: subj.id, tab: tab.id }, { replace: App.route.v === 'subject' && App.route.id === subj.id });
     }
   };
 
@@ -895,7 +1170,8 @@
     Modal.close();
     if (run && run.n > 0) {
       FX.toast(run.n + (run.n === 1 ? ' card' : ' cards') + ' added — go earn the green ⚓', 'green');
-      App.go({ v: 'subject', id: App.route.id, tab: run.tabId || App.route.tab, f: App.route.f });
+      if (App.route.v === 'subject') App.go({ v: 'subject', id: App.route.id, tab: run.tabId || App.route.tab }, { replace: true });
+      else App.render();
     }
   };
 
@@ -949,11 +1225,28 @@
 
   /* ─── Event delegation & keyboard ────────────────────────────────────── */
   document.addEventListener('click', function (ev) {
+    var inMenu = Menu.el && Menu.el.contains(ev.target);
     var el = ev.target;
     while (el && el !== document.body) {
       var a = el.getAttribute && el.getAttribute('data-a');
-      if (a && ACTIONS[a]) { ACTIONS[a](el, ev); return; }
+      if (a && ACTIONS[a]) {
+        if (el.disabled) return;
+        if (!inMenu) Menu.close();
+        ACTIONS[a](el, ev);
+        if (inMenu) Menu.close();
+        return;
+      }
       el = el.parentNode;
+    }
+    if (!inMenu) Menu.close();
+  });
+
+  // Keyboard access for the clickable cards (role="button" divs)
+  document.addEventListener('keydown', function (ev) {
+    var t = ev.target;
+    if ((ev.key === 'Enter' || ev.key === ' ') && t && t.getAttribute && t.getAttribute('role') === 'button' && t.tagName !== 'BUTTON') {
+      ev.preventDefault();
+      t.click();
     }
   });
 
@@ -985,6 +1278,9 @@
   });
 
   function afterRender() {
+    // keep the active tab visible when the tab row scrolls sideways (phones)
+    var onTab = document.querySelector('.tabbar .tabp.on');
+    if (onTab && onTab.scrollIntoView && window.innerWidth <= 640) onTab.scrollIntoView({ block: 'nearest', inline: 'center' });
     var ta = document.getElementById('sessTa');
     if (ta) { ta.focus(); ta.selectionStart = ta.value.length; }
     var nl = document.getElementById('nlInput');
@@ -1001,6 +1297,8 @@
   /* ─── Boot ───────────────────────────────────────────────────────────── */
   Store.load();
   document.documentElement.setAttribute('data-theme', Store.data().settings.theme || 'dark');
+  App.route = parseHash(location.hash);
+  if (App.route.v === 'session') { App.route = { v: 'home' }; try { history.replaceState(null, '', '#/'); } catch (e) {} }
   if (window.Cloud) Cloud.init();   // decides gate vs app, then renders
   else App.render();
 })();
