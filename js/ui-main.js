@@ -901,6 +901,9 @@
         ctx: ctx,
         crumbs: ctx.subject.name + ' · ' + ctx.tab.name + (ctx.card.group ? ' · ' + ctx.card.group : ''),
         tag: U.modeLabel(ctx.mode),
+        ask: ctx.mode === 'def' ? { cls: 'def', ic: '📖', t: 'Definition', q: 'What does it mean?', what: 'definition' }
+           : ctx.mode === 'key' ? { cls: 'key', ic: '🔑', t: 'Key facts', q: 'List the key points', what: 'key facts' }
+           : null,
         front: ctx.card.term,
         back: Store.facetText(ctx.card, ctx.mode),
         note: ctx.card.note
@@ -911,6 +914,7 @@
         ctx: ctx,
         crumbs: 'Chain · ' + ctx.chain.title,
         tag: 'Link ' + (ctx.idx + 1) + '/' + ctx.chain.sentences.length,
+        ask: { cls: 'link', ic: '⛓️', t: 'Link ' + (ctx.idx + 1) + ' of ' + ctx.chain.sentences.length, q: 'Say the full sentence', what: 'sentence' },
         front: ctx.sent.kw,
         back: ctx.sent.text
       };
@@ -935,8 +939,9 @@
       var fb = sessFrontBack(s.q[s.i]);
       if (!fb) { s.i++; setTimeout(App.render, 0); return '<div class="empty">…</div>'; }
       var typeFirst = window.textMode();
-      html += '<div class="sess-card"><div class="sc-ctx">' + U.esc(fb.crumbs)
-        + ' <span class="pill">' + U.esc(fb.tag) + '</span></div>'
+      html += '<div class="sess-card' + (fb.ask ? ' ask-' + fb.ask.cls : '') + '"><div class="sc-ctx">' + U.esc(fb.crumbs)
+        + (fb.ask ? '' : ' <span class="pill">' + U.esc(fb.tag) + '</span>') + '</div>'
+        + (fb.ask ? '<div class="sc-ask"><span class="sc-ask-badge">' + fb.ask.ic + ' ' + U.esc(fb.ask.t) + '</span><span class="sc-ask-q">' + U.esc(fb.ask.q) + '</span></div>' : '')
         + '<div class="sc-term">' + U.esc(fb.front) + '</div>';
 
       if (!s.revealed) {
@@ -948,13 +953,13 @@
             + '<button class="btn" data-a="sess-reveal" data-skip="1">Just show me</button>'
             + '<button class="btn" data-a="sess-skip" title="Move on without grading (S)">Skip →</button></div>';
         } else {
-          html += '<div class="hidden-panel" data-a="sess-reveal" style="min-height:120px;font-size:16px">👁 Reveal — say it (or whiteboard it) from memory first</div>'
+          html += '<div class="hidden-panel" data-a="sess-reveal" style="min-height:120px;font-size:16px">👁 Reveal the ' + (fb.ask ? U.esc(fb.ask.what) : 'answer') + ' — say it (or whiteboard it) from memory first</div>'
             + '<div style="margin-top:12px;text-align:right"><button class="hide-link" data-a="sess-skip">Skip this card (S) →</button></div>';
         }
       } else {
         html += '<div class="answer-block">';
         if (s.typed.trim()) html += '<div class="ab-lbl">What you produced</div><div class="your-answer">' + U.esc(s.typed) + '</div>';
-        html += '<div class="ab-lbl acc">The answer</div><div class="real-answer">' + U.esc(fb.back) + '</div>'
+        html += '<div class="ab-lbl acc">' + (fb.ask ? 'The ' + U.esc(fb.ask.what) : 'The answer') + '</div><div class="real-answer">' + U.esc(fb.back) + '</div>'
           + (fb.note ? '<div class="note-box" style="margin-top:10px"><span class="note-lbl">Note</span><span>' + U.esc(fb.note) + '</span></div>' : '')
           + '<div class="grade-row">'
           + '<button class="gbtn g1" data-a="sess-grade" data-g="1">✗ Missed<kbd>1</kbd></button>'

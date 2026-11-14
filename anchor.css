@@ -1161,3 +1161,16 @@ body.viewing-edit .sync-chip { box-shadow: 0 0 0 2px var(--red-line); }
 /* keep the view-as banner above the full-screen session player (tutor quizzes) */
 .viewas-bar { z-index: 95; }
 body.viewing-as .session { top: calc(40px + env(safe-area-inset-top)); }
+
+/* session: make WHAT you're recalling (definition / key facts / link) unmissable */
+.sc-ask { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 2px; }
+.sc-ask-badge { font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 5px 12px; border-radius: 999px; border: 1.5px solid; }
+.sc-ask-q { font-size: 15px; font-weight: 600; color: var(--text2); }
+.ask-def .sc-ask-badge { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); }
+.ask-key .sc-ask-badge { color: var(--amber); border-color: var(--amber-line); background: var(--amber-soft); }
+.ask-link .sc-ask-badge { color: var(--green); border-color: var(--green-line); background: var(--green-soft); }
+.sess-card.ask-def { border-top: 4px solid var(--accent); }
+.sess-card.ask-key { border-top: 4px solid var(--amber); }
+.sess-card.ask-link { border-top: 4px solid var(--green); }
+.ask-key .real-answer { background: var(--amber-soft); border-color: var(--amber-line); }
+.ask-key .ab-lbl.acc { color: var(--amber); }
