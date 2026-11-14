@@ -46,6 +46,12 @@
       <a class="sbn" href="#/settings" data-nav="data">
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9"/><path d="M17 7h3"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>
         <span>Settings</span></a>
+      <a class="sbn staff-nav" href="#/teach" data-nav="teach" data-staff="tutor" hidden>
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><path d="M16 5.5a3 3 0 0 1 0 5.6"/><path d="M17.5 14.6c1.7.6 2.8 2.2 3.1 4.9"/></svg>
+        <span>Teaching</span></a>
+      <a class="sbn staff-nav" href="#/admin" data-nav="admin" data-staff="admin" hidden>
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 19 6v5.5c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z"/><path d="m9 12 2.2 2.2L15.5 10"/></svg>
+        <span>Admin</span></a>
     </nav>
     <div class="sb-lib" id="sbLib"></div>
   </aside>
@@ -87,6 +93,8 @@
     <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11"/><path d="M10 20V5"/><path d="M16 20v-8"/><path d="M3 20h18"/></svg><span>Stats</span></a>
   <a class="tbm" href="#/settings" data-nav="data">
     <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9"/><path d="M17 7h3"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg><span>Settings</span></a>
+  <a class="tbm" href="#/teach" data-nav="teach" data-staff="tutor" hidden>
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><path d="M16 5.5a3 3 0 0 1 0 5.6"/><path d="M17.5 14.6c1.7.6 2.8 2.2 3.1 4.9"/></svg><span>Teach</span></a>
 </nav>
 
 <div id="toasts" aria-live="polite"></div>
@@ -95,11 +103,15 @@
 <input type="file" id="importFile" accept=".json,application/json" style="display:none">
 
 <script src="js/fsrs.js"></script>
+<script src="js/merge.js"></script>
 <script src="js/store.js"></script>
 <script src="js/seed.js"></script>
 <script src="js/config.js"></script>
 <script src="js/cloud.js"></script>
 <script src="js/ui-extra.js"></script>
+<script src="js/classroom.js"></script>
+<script src="js/teach.js"></script>
+<script src="js/admin.js"></script>
 <script src="js/ui-main.js"></script>
 <script>
   if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {

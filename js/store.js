@@ -37,15 +37,44 @@
   /* --- persistence ----------------------------------------------------------- */
   var quiet = false; // true while applying a cloud pull, so we don't push it straight back
 
+  /* LENS — while a tutor/admin opens someone else's account, S is THEIR
+     document. Nothing touches this device's own copy (localStorage) and every
+     save goes to the lens owner's onSave (which syncs it to their account). */
+  var LENS = null;  // { own: <your S>, opts: { uid, onSave(), tutor:bool } }
+
   function save() {
     IDX = null;
+    if (LENS) { if (!quiet && LENS.opts.onSave) LENS.opts.onSave(); return; }
     try { localStorage.setItem(KEY, JSON.stringify(S)); }
     catch (e) { console.error('Anchor: save failed', e); }
     if (!quiet && window.Cloud) window.Cloud.onLocalSave();
   }
 
+  // Swap the in-memory document without triggering a sync push (used after
+  // pulls and merges). Persists locally only for your own account.
+  function setDoc(doc) {
+    if (doc && doc.v === 1) doc = migrateV1(doc);
+    IDX = null;
+    S = withDefaults(doc && doc.v === 2 ? doc : blank());
+    if (!S.meta.created) S.meta.created = todayISO();
+    quiet = true; save(); quiet = false;
+  }
+  function enterLens(doc, opts) {
+    if (LENS) exitLens();
+    LENS = { own: S, opts: opts || {} };
+    IDX = null;
+    S = withDefaults(doc && doc.v === 2 ? doc : (doc && doc.v === 1 ? migrateV1(doc) : blank()));
+    if (!S.meta.created) S.meta.created = todayISO();
+  }
+  function exitLens() {
+    if (!LENS) return;
+    S = LENS.own; LENS = null; IDX = null;
+  }
+  function blankDoc() { var d = blank(); d.meta.created = todayISO(); return d; }
+
   // Swap in a full state object (from the cloud) without triggering a push.
   function replaceAll(parsed) {
+    if (LENS) return setDoc(parsed);
     if (parsed && parsed.v === 1) parsed = migrateV1(parsed);
     IDX = null;
     S = withDefaults(parsed && parsed.v === 2 ? parsed : blank());
@@ -219,7 +248,8 @@
     return Math.max(0, GREEN_CRITERION - (st ? st.got : 0));
   }
 
-  function applyGrade(key, g) {
+  function applyGrade(key, g, opts) {
+    opts = opts || {};
     var st = facetState(key, true);
     var now = Date.now();
     var preR = FSRS.rNow(st.srs, now);
@@ -227,7 +257,11 @@
     var wasVerified = isVerified(key);
 
     st.srs = FSRS.grade(st.srs, g, now);
-    st.hist.push({ t: new Date(now).toISOString(), g: g, r: preR === null ? null : Math.round(preR * 100) / 100, c: confBefore });
+    var h = { t: new Date(now).toISOString(), g: g, r: preR === null ? null : Math.round(preR * 100) / 100, c: confBefore };
+    if (LENS && LENS.opts.tutor) h.tu = 1;               // graded by the tutor in a lesson
+    st.hist.push(h);
+    // keep the last typed answer so a tutor can check it later
+    if (opts.typed && String(opts.typed).trim()) st.ans = { t: h.t, x: String(opts.typed).trim().slice(0, 600), g: g };
     if (st.hist.length > 100) st.hist.shift();
     if (g >= 3) st.got++; else if (g === 1) st.miss++;
 
@@ -548,6 +582,9 @@
     GREEN_CRITERION: GREEN_CRITERION,
     data: function () { return S; },
     save: save, load: load, replaceAll: replaceAll, clearLocal: clearLocal,
+    setDoc: setDoc, enterLens: enterLens, exitLens: exitLens, blankDoc: blankDoc,
+    lens: function () { return LENS ? LENS.opts : null; },
+    ownData: function () { return LENS ? LENS.own : S; },
     uid: uid, todayISO: todayISO,
     subjectById: subjectById, chainById: chainById, essayById: essayById, folderById: folderById,
     itemById: itemById, invalidate: invalidate,

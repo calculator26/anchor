@@ -3,18 +3,22 @@
    Supabase API calls (auth + sync) are never intercepted — they go straight
    to the network. The Supabase JS library is cached so a signed-in user can
    still boot the app with no connection. */
-var CACHE = 'anchor-v6';
-var SUPABASE_LIB = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+var CACHE = 'anchor-v7';
+var SUPABASE_LIB = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
 var SHELL = [
   './',
   './index.html',
   './anchor.css',
   './js/fsrs.js',
+  './js/merge.js',
   './js/store.js',
   './js/seed.js',
   './js/config.js',
   './js/cloud.js',
   './js/ui-extra.js',
+  './js/classroom.js',
+  './js/teach.js',
+  './js/admin.js',
   './js/ui-main.js',
   './manifest.webmanifest',
   './icons/anchor.svg',

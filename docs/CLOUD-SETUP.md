@@ -106,3 +106,20 @@ flow. Turn it off only if you want sign-ups to skip the email step entirely.
 | Sign-in screen never appears | `js/config.js` still has placeholders, or URL/key were pasted with typos. |
 | `⚠ Sync error` chip | Supabase project is paused (dashboard → Restore) or the table wasn't created (Step 2). |
 | Works locally, not on Pages | Hard-refresh (Ctrl+Shift+R) — the service worker may be serving an old version. |
+
+
+---
+
+## Tutor platform (v7) — extra setup for a new project
+
+1. Run the whole of `supabase-setup.sql` (it already includes the tutor tables, backups and security rules).
+2. Make yourself admin in the SQL editor (this is deliberately impossible from the app):
+   ```sql
+   update public.profiles set role = 'admin', display_name = 'Your name' where email = 'you@example.com';
+   ```
+3. Deploy the account-actions edge function (creating student accounts, setting passwords, deleting accounts):
+   ```bash
+   supabase functions deploy admin-users --no-verify-jwt
+   ```
+   It authenticates every call itself from the caller's sign-in token and checks their role, so `--no-verify-jwt` is safe. It uses the project's built-in `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` — nothing to configure.
+4. Sign in — **Teaching** and **Admin** appear in the sidebar.

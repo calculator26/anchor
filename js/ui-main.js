@@ -27,6 +27,10 @@
       case 'session': return '#/session';
       case 'stats': return '#/stats' + (r.s ? '/' + e(r.s) : '');
       case 'data': return '#/settings';
+      case 'teach': return '#/teach' + (r.tab && r.tab !== 'students' ? '/' + e(r.tab) : '');
+      case 'student': return '#/teach/student/' + e(r.id);
+      case 'admin': return '#/admin' + (r.tab && r.tab !== 'users' ? '/' + e(r.tab) : '');
+      case 'adminUser': return '#/admin/user/' + e(r.id);
     }
     return '#/';
   }
@@ -46,6 +50,8 @@
     if (a === 'session') return { v: 'session' };
     if (a === 'stats') return { v: 'stats', s: p[1] };
     if (a === 'settings' || a === 'data') return { v: 'data' };
+    if (a === 'teach') return p[1] === 'student' && p[2] ? { v: 'student', id: p[2] } : { v: 'teach', tab: p[1] || 'students' };
+    if (a === 'admin') return p[1] === 'user' && p[2] ? { v: 'adminUser', id: p[2] } : { v: 'admin', tab: p[1] || 'users' };
     return { v: 'home' };
   }
 
@@ -56,6 +62,7 @@
 
     go: function (route, opts) {
       opts = opts || {};
+      if (STAFF[route.v] && Store.lens()) { leaveLens(function () { App.go(route, opts); }); return; }
       var cur = location.hash || '#/';
       SCROLL[cur] = window.scrollY;
       App.route = route;
@@ -88,6 +95,10 @@
       else if (v === 'recital') html = V.recital(App.route);
       else if (v === 'stats') html = V.stats(App.route);
       else if (v === 'data') html = V.data();
+      else if (v === 'teach') html = Teach.view(App.route);
+      else if (v === 'student') html = Teach.studentView(App.route);
+      else if (v === 'admin') html = Admin.view(App.route);
+      else if (v === 'adminUser') html = Admin.userView(App.route);
       document.getElementById('view').innerHTML = html;
       document.body.classList.toggle('in-session', v === 'session');
       App.renderTop();
@@ -107,7 +118,14 @@
       var st = Store.streak();
       document.getElementById('streakN').textContent = st;
       document.getElementById('streakChip').classList.toggle('hot', st > 0);
-      var navMap = { home: 'home', subject: 'home', session: 'home', chains: 'chains', essay: 'chains', chainBuild: 'chains', chain: 'chains', arrange: 'chains', nextlink: 'chains', recital: 'chains', stats: 'stats', data: 'data' };
+      var navMap = { home: 'home', subject: 'home', session: 'home', chains: 'chains', essay: 'chains', chainBuild: 'chains', chain: 'chains', arrange: 'chains', nextlink: 'chains', recital: 'chains', stats: 'stats', data: 'data', teach: 'teach', student: 'teach', admin: 'admin', adminUser: 'admin' };
+      var staffOn = !!(window.Cloud && Cloud.isTutor && Cloud.isTutor()) && !Store.lens();
+      document.querySelectorAll('[data-staff]').forEach(function (b) {
+        var need = b.getAttribute('data-staff');
+        b.hidden = !(staffOn && (need === 'tutor' || Cloud.isAdmin()));
+      });
+      document.body.classList.toggle('staff', staffOn);
+      renderViewAs();
       var on = navMap[App.route.v];
       document.querySelectorAll('[data-nav]').forEach(function (b) {
         b.classList.toggle('on', b.getAttribute('data-nav') === on);
@@ -188,7 +206,60 @@
     }
   };
 
-  /* ─── Facet helpers ──────────────────────────────────────────────────── */
+  /* ─── Staff routes & the view-as lens ─────────────────────────────────── */
+  var STAFF = { teach: 1, student: 1, admin: 1, adminUser: 1 };
+  function leaveLens(then) {
+    document.getElementById('view').innerHTML = '<div class="staff-loading"><div class="spinner"></div>Saving and leaving their Anchor…</div>';
+    App.sess = null;
+    var was = Store.lens() && Store.lens().uid;
+    Cloud.closeLens().then(function () {
+      App.viewAs = null;
+      if (was && window.Staff) { delete Staff.docs[was]; Staff.reload(); }
+      Store.invalidate();
+      if (then) then(); else App.render();
+    });
+  }
+  App.leaveLens = leaveLens;
+
+  function renderViewAs() {
+    var bar = document.getElementById('viewAsBar');
+    var va = App.viewAs, l = Store.lens();
+    if (!va || !l) {
+      if (bar) bar.remove();
+      document.body.classList.remove('viewing-as', 'viewing-edit');
+      return;
+    }
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'viewAsBar';
+      document.body.insertBefore(bar, document.body.firstChild);
+    }
+    document.body.classList.add('viewing-as');
+    document.body.classList.toggle('viewing-edit', !!va.edit);
+    bar.className = 'viewas-bar' + (va.edit ? ' edit' : '');
+    bar.innerHTML = '<span class="va-ic">' + U.icon(va.edit ? 'edit' : 'home', 'sm') + '</span>'
+      + '<span class="va-t">' + (va.edit ? 'Editing ' : 'Viewing ') + '<b>' + U.esc(va.name) + '</b>’s Anchor'
+      + '<span class="va-sub">' + (va.edit ? ' — changes save to their account' : ' — read-only') + '</span></span>'
+      + (va.edit ? '<button class="btn xs" data-a="va-lock">Lock</button>' : '<button class="btn xs" data-a="va-unlock">Unlock editing</button>')
+      + '<button class="btn xs primary" data-a="va-exit">Exit</button>';
+  }
+  ACTIONS['va-exit'] = function () {
+    var back = (App.viewAs && App.viewAs.back) || { v: 'teach' };
+    leaveLens(function () { App.go(back, { replace: true }); });
+  };
+  ACTIONS['va-lock'] = function () { if (App.viewAs) { App.viewAs.edit = false; App.render(); } };
+  ACTIONS['va-unlock'] = function () {
+    var va = App.viewAs;
+    if (!va) return;
+    var unlock = function () { va.edit = true; App.render(); FX.toast('Editing unlocked — changes save to ' + va.name + '’s account.', 'amber', 2800); };
+    // your own students: one click. anyone else: type their email first.
+    if (va.student && window.Staff && Staff.person(va.uid) && (Staff.person(va.uid).tutor_id === Cloud.user().id)) unlock();
+    else if (window.Admin && Cloud.isAdmin()) Admin.wall(va.uid, 'Edit ' + va.name + '’s Anchor', 'Changes save straight to their account (merge-safe; a backup is taken first).', unlock);
+    else unlock();
+  };
+  // things that act on YOUR account (sign-out, cloud wipe…) are off while inside someone else's
+  var LENS_BLOCKED = { 'cloud-signout': 1, 'wipe-all': 1, 'my-backups': 1, 'my-backup-restore': 1, 'me-name-save': 1, 'seed-load': 0 };
+
   /* ─── Facet helpers ──────────────────────────────────────────────────── */
   function cardFacetKeys(subj, card) {
     return Store.cardModes(subj).filter(function (m) { return Store.facetText(card, m); })
@@ -215,6 +286,7 @@
     if (toHash(App.route) === h) return;                   // our own pushState, already rendered
     SCROLL[toHash(App.route)] = window.scrollY;
     var r = parseHash(h);
+    if (STAFF[r.v] && Store.lens()) { leaveLens(function () { App.route = r; App.render(); }); return; }
     if (r.v === 'session' && !App.sess) { App.go({ v: 'home' }, { replace: true }); return; }
     if (App.route.v === 'session' && r.v !== 'session') App.sess = null;
     App.route = r;
@@ -326,6 +398,8 @@
       + '<button class="btn" data-a="folder-new" data-space="subjects">' + U.icon('folderPlus') + 'Folder</button>'
       + '<button class="btn primary" data-a="subject-new">' + U.icon('plus') + 'Subject</button></div></div>';
 
+    if (window.Classroom) html += Classroom.homeHTML();
+
     // Today strip
     var gFrac = Math.min(1, act.n / goal);
     var exams = D.subjects.filter(function (s) { var d = U.daysUntil(s.examDate); return d !== null && d >= 0; })
@@ -398,6 +472,7 @@
       + (s.tagline ? '<div class="sc-tag">' + U.esc(s.tagline) + '</div>' : '')
       + '<div class="sc-meta">'
       + (dueN ? '<span class="pill due">' + dueN + ' due</span>' : '')
+      + (s.src ? '<span class="pill managed">⚓ ' + U.esc(s.src.by || 'tutor') + '</span>' : '')
       + '<span class="pill">' + U.plural(t.n, 'card') + '</span>'
       + (linked ? '<span class="pill">' + U.plural(linked, 'essay') + '</span>' : '')
       + (exam !== null && exam >= 0 ? '<span class="pill exam">' + (exam > 0 ? exam + 'd to exam' : 'exam day') + '</span>' : '')
@@ -409,7 +484,8 @@
   }
 
   function viewWelcome() {
-    return '<div class="welcome">'
+    var hw = window.Classroom ? Classroom.homeHTML() : '';
+    return hw + '<div class="welcome">'
       + '<svg class="brand-mark big" viewBox="0 0 48 48" aria-hidden="true"><use href="#anchor-mark"/></svg>'
       + '<div class="w-title">Memory that <em>holds</em>.</div>'
       + '<div class="w-sub">A self-directed memorisation system for high-stakes exams — built on the two study techniques with the strongest evidence in cognitive science, and honest enough to show you what you’d actually recall today.</div>'
@@ -548,7 +624,7 @@
     html += '<div class="page-head"><div>'
       + '<div class="eyebrow">' + U.icon('book', 'sm') + 'Subject'
       + (exam !== null ? (exam > 0 ? ' · <b class="acc">' + exam + ' days to the exam</b>' : exam === 0 ? ' · <b class="warn-t">exam day — go get it</b>' : '') : ' · <button class="linklike" data-a="subject-edit" data-id="' + subj.id + '">set exam date</button>') + '</div>'
-      + '<h1>' + U.esc(subj.name) + '</h1>'
+      + '<h1>' + U.esc(subj.name) + (subj.src ? ' <span class="pill managed" title="Your tutor keeps these cards up to date. You can add your own cards too.">⚓ from ' + U.esc(subj.src.by || 'your tutor') + '</span>' : '') + '</h1>'
       + (subj.tagline ? '<div class="ph-sub">' + U.esc(subj.tagline) + '</div>' : '') + '</div>'
       + '<div class="ph-actions">'
       + (dueN ? '<button class="btn due" data-a="review-subject" data-id="' + subj.id + '">' + U.icon('bell') + 'Review ' + dueN + '</button>' : '')
@@ -713,7 +789,7 @@
 
   ACTIONS['grade'] = function (el) {
     var k = el.getAttribute('data-k'), g = +el.getAttribute('data-g');
-    var res = Store.applyGrade(k, g);
+    var res = Store.applyGrade(k, g, { typed: TYPED[k] });
     var card = document.querySelector('[data-card="' + k + '"]');
     if (res.wentGreen) FX.green(card);
     else if (g >= 3) {
@@ -929,7 +1005,7 @@
     var key = s.q[s.i];
     var stBefore = Store.data().state[key];
     var oldS = stBefore && stBefore.srs ? stBefore.srs.S : 0;
-    var res = Store.applyGrade(key, g);
+    var res = Store.applyGrade(key, g, { typed: s.typed });
     s.banked += Math.max(0, res.srs.S - oldS);
 
     if (g >= 3) {
@@ -1231,6 +1307,7 @@
       var a = el.getAttribute && el.getAttribute('data-a');
       if (a && ACTIONS[a]) {
         if (el.disabled) return;
+        if (LENS_BLOCKED[a] && Store.lens()) { Menu.close(); FX.toast('That acts on your own account — exit the student view first.', 'amber', 3000); return; }
         if (!inMenu) Menu.close();
         ACTIONS[a](el, ev);
         if (inMenu) Menu.close();
@@ -1293,6 +1370,57 @@
       t.oninput = function () { TYPED[t.getAttribute('data-typed')] = t.value; };
     });
   }
+
+  /* ─── Tutor-managed (locked) content ─────────────────────────────────────
+     Cards and tabs that came from a tutor's deck carry lk:1. Students can add
+     their own cards beside them, but changing the tutor's copy would be
+     overwritten by the next update — so we offer a personal copy instead.
+     (Inside a student's account, a tutor/admin can still edit anything.) */
+  function findCard(subj, id) {
+    var out = null;
+    subj.tabs.forEach(function (t) { t.cards.forEach(function (c) { if (c.id === id) out = { card: c, tab: t }; }); });
+    return out;
+  }
+  function guard(name, test) {
+    var orig = ACTIONS[name];
+    ACTIONS[name] = function (el, ev) { if (test(el)) return; return orig(el, ev); };
+  }
+  guard('card-edit', function (el) {
+    var subj = Store.subjectById(el.getAttribute('data-subj')), hit = subj && findCard(subj, el.getAttribute('data-id'));
+    if (!hit || !Classroom.lockedCard(hit.card)) return false;
+    Modal.open('<div class="m-title">This card is from ' + U.esc(Classroom.managedBy(subj)) + '</div>'
+      + '<div class="m-sub">Your tutor keeps it up to date, so it can’t be edited here. Make your own copy if you want to word it your way — your copy is yours to change.</div>'
+      + '<div class="m-actions"><button class="btn" data-a="modal-close">Cancel</button>'
+      + '<button class="btn primary" data-a="card-fork" data-subj="' + subj.id + '" data-id="' + hit.card.id + '">Make my own copy</button></div>');
+    return true;
+  });
+  ACTIONS['card-fork'] = function (el) {
+    var subj = Store.subjectById(el.getAttribute('data-subj')), hit = findCard(subj, el.getAttribute('data-id'));
+    if (!hit) return;
+    var copy = JSON.parse(JSON.stringify(hit.card));
+    delete copy.lk; copy.id = Store.uid('c'); copy.term = copy.term + ' (my version)';
+    hit.tab.cards.splice(hit.tab.cards.indexOf(hit.card) + 1, 0, copy);
+    Store.save();
+    Modal.close();
+    App.render();
+    setTimeout(function () { ACTIONS['card-edit']({ getAttribute: function (k) { return k === 'data-subj' ? subj.id : copy.id; } }); }, 50);
+  };
+  guard('card-del', function (el) {
+    var subj = Store.subjectById(el.getAttribute('data-subj')), hit = subj && findCard(subj, el.getAttribute('data-id'));
+    if (!hit || !Classroom.lockedCard(hit.card)) return false;
+    Modal.close();
+    FX.toast('That card is from your tutor, so it stays — add your own cards alongside it.', 'amber', 3200);
+    return true;
+  });
+  ['tab-del', 'tab-edit'].forEach(function (name) {
+    guard(name, function (el) {
+      var subj = Store.subjectById(el.getAttribute('data-id')), tabId = el.getAttribute('data-t');
+      var tab = subj && subj.tabs.filter(function (t) { return t.id === tabId; })[0];
+      if (!tab || !tab.lk || Store.lens()) return false;
+      FX.toast('That tab is from your tutor — it updates automatically.', 'amber', 3000);
+      return true;
+    });
+  });
 
   /* ─── Boot ───────────────────────────────────────────────────────────── */
   Store.load();

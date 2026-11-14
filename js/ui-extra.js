@@ -415,7 +415,11 @@
      or dictation, then reveal to compare side-by-side. It's the same idea as
      produce-before-reveal, stored in settings.typeFirst so one toggle drives
      inline cards and full sessions alike. ─────────────────────────────────── */
-  window.textMode = function () { return !!Store.data().settings.typeFirst; };
+  window.textMode = function () {
+    // inside a student's account (tutor quiz) the mode is the tutor's, not saved to them
+    if (Store.lens()) return !!App.lensTextMode;
+    return !!Store.data().settings.typeFirst;
+  };
 
   window.studyModeToggle = function () {
     var on = window.textMode();
@@ -447,8 +451,8 @@
     if (window.textMode() === on) return;
     var ta = document.getElementById('sessTa');            // preserve a half-typed session answer
     if (ta && App.sess) App.sess.typed = ta.value;
-    Store.data().settings.typeFirst = on;
-    Store.save();
+    if (Store.lens()) App.lensTextMode = on;
+    else { Store.data().settings.typeFirst = on; Store.save(); }
     App.render();
     FX.toast(on ? '⌨ Text mode — type or dictate, then reveal to compare'
                 : '👁 Reveal mode — produce it in your head, then reveal', '', 2200);
