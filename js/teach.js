@@ -752,7 +752,7 @@
         goal: AS.goal === 'reviews' ? { type: 'reviews', n: AS.n } : { type: 'anchor', pct: AS.pct },
         due_on: AS.due || null
       };
-    }).then(function (res) {
+    }, AS.tabs && AS.tabs.length ? { tabs: AS.tabs.slice() } : { all: true }).then(function (res) {
       Modal.close();
       FX.toast('Homework set for ' + U.plural(res.ok, 'student') + (res.fail ? ' · ' + res.fail + ' failed' : '') + ' ✓', res.fail ? 'amber' : 'green', 3500);
       Staff.reload();
@@ -761,13 +761,13 @@
 
   // Install deck content into each student's Anchor (immediately, merge-safe)
   // and optionally create an assignment row per student.
-  Teach.giveDeck = function (d, content, uids, rowFor) {
+  Teach.giveDeck = function (d, content, uids, rowFor, grant) {
     var by = (Cloud.me() && Cloud.me().display_name) || 'your tutor';
     var ok = 0, fail = 0;
     return uids.reduce(function (pr, uid) {
       return pr.then(function () {
         return Cloud.mutateDoc(uid, function (doc) {
-          Deck.apply(doc, { id: d.id, version: d.version, content: content, by: by });
+          Deck.apply(doc, { id: d.id, version: d.version, content: content, by: by }, grant || {});
         }).then(function () {
           delete Staff.docs[uid];
           if (!rowFor) return;
@@ -909,7 +909,7 @@
     document.querySelectorAll('.gvStu:checked').forEach(function (c) { uids.push(c.value); });
     if (!uids.length) return;
     el.disabled = true;
-    Staff.loadDeckContent(id).then(function (content) { return Teach.giveDeck(d, content, uids, null); }).then(function (r) {
+    Staff.loadDeckContent(id).then(function (content) { return Teach.giveDeck(d, content, uids, null, { all: true }); }).then(function (r) {
       Modal.close(); FX.toast('Added to ' + U.plural(r.ok, 'student') + ' ✓', 'green');
     });
   };
@@ -974,7 +974,7 @@
         return pr.then(function () { return Staff.loadDeckContent(d.id); }).then(function (content) {
           return Teach.giveDeck(d, content, uids, function (uid) {
             return { tutor_id: Staff.meId(), student_id: uid, group_id: gid, deck_id: d.id, title: a.title, note: a.note, scope: a.scope, goal: a.goal, due_on: a.due_on };
-          });
+          }, a.scope && a.scope.tabs && a.scope.tabs.length ? { tabs: a.scope.tabs } : { all: true });
         });
       }, Promise.resolve());
     }).then(function () { Modal.close(); FX.toast('Added ✓', 'green'); Staff.reload(); }, function (e) { el.disabled = false; FX.toast(e.message, 'amber'); });
@@ -996,7 +996,7 @@
       + '<div class="m-row"><label class="m-lbl">Email</label><input class="m-input" id="naEmail" type="email" placeholder="sam@example.com" spellcheck="false"></div>'
       + '<div class="m-row"><label class="m-lbl">Password</label><div class="row-inline"><input class="m-input mono" id="naPass" value="' + genPassword() + '"><button class="btn sm" data-a="na-regen" title="New password">↻</button></div></div>'
       + (Cloud.isAdmin() ? '<div class="m-row"><label class="m-lbl">Account type</label><select class="m-input" id="naRole"><option value="student">Student (yours)</option><option value="user">Regular user</option><option value="tutor">Tutor</option></select></div>' : '')
-      + (decks.length ? '<div class="m-row"><label class="m-lbl">Preload decks</label><div class="who-picks">' + decks.map(function (d) {
+      + (decks.length ? '<div class="m-row"><label class="m-lbl">Preload whole decks <span class="muted">(or leave empty and set homework with just the tabs you want)</span></label><div class="who-picks">' + decks.map(function (d) {
         return '<label class="tick"><input type="checkbox" class="naDeck" value="' + d.id + '"> ' + esc(d.title) + '</label>';
       }).join('') + '</div></div>' : '')
       + ((Staff.groups || []).length ? '<div class="m-row"><label class="m-lbl">Group</label><select class="m-input" id="naGroup"><option value="">—</option>'
@@ -1025,7 +1025,7 @@
       return deckIds.reduce(function (pr, id) {
         return pr.then(function () { return Staff.loadDeckContent(id); }).then(function (content) {
           var d = Staff.deck(id);
-          return Teach.giveDeck(d, content, [uid], null);
+          return Teach.giveDeck(d, content, [uid], null, { all: true });
         });
       }, Promise.resolve());
     }).then(function () {

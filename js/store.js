@@ -23,7 +23,7 @@
   function blank() {
     return {
       v: 2,
-      settings: { theme: 'dark', dailyGoal: 20, retention: 0.9, typeFirst: true },
+      settings: { theme: 'light', dailyGoal: 20, retention: 0.9, typeFirst: false },
       subjects: [],
       essays: [],   // {id, title, subjectId} — an essay groups several chains (one per paragraph)
       chains: [],   // {id, subjectId, essayId, folderId, title, sentences:[{id,text,kw}], created}
@@ -103,7 +103,7 @@
   }
 
   function withDefaults(d) {
-    d.settings = Object.assign({ theme: 'dark', dailyGoal: 20, retention: 0.9, typeFirst: true }, d.settings);
+    d.settings = Object.assign({ theme: 'light', dailyGoal: 20, retention: 0.9, typeFirst: false }, d.settings);
     d.subjects = d.subjects || [];
     d.essays = d.essays || [];
     d.chains = d.chains || [];

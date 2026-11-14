@@ -934,7 +934,7 @@
     } else {
       var fb = sessFrontBack(s.q[s.i]);
       if (!fb) { s.i++; setTimeout(App.render, 0); return '<div class="empty">…</div>'; }
-      var typeFirst = Store.data().settings.typeFirst;
+      var typeFirst = window.textMode();
       html += '<div class="sess-card"><div class="sc-ctx">' + U.esc(fb.crumbs)
         + ' <span class="pill">' + U.esc(fb.tag) + '</span></div>'
         + '<div class="sc-term">' + U.esc(fb.front) + '</div>';
@@ -1424,7 +1424,8 @@
 
   /* ─── Boot ───────────────────────────────────────────────────────────── */
   Store.load();
-  document.documentElement.setAttribute('data-theme', Store.data().settings.theme || 'dark');
+  document.documentElement.setAttribute('data-theme', Store.data().settings.theme || 'light');
+  (function () { var m = document.querySelector('meta[name=theme-color]'); if (m) m.setAttribute('content', Store.data().settings.theme === 'dark' ? '#0b0f17' : '#f3f5f9'); })();
   App.route = parseHash(location.hash);
   if (App.route.v === 'session') { App.route = { v: 'home' }; try { history.replaceState(null, '', '#/'); } catch (e) {} }
   if (window.Cloud) Cloud.init();   // decides gate vs app, then renders

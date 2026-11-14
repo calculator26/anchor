@@ -81,22 +81,36 @@
     },
 
     // Install or update deck `d` ({id, version, content, by}) inside `doc`.
-    apply: function (doc, d) {
-      var c = d.content || {}, src = { deck: d.id, v: d.version, by: d.by || '' };
+    // opts.tabs = [tabIds] → grant just those tabs (added to anything already
+    //             granted); students never see tabs they weren't given.
+    // opts.all  = true     → grant the whole deck.
+    // neither              → keep whatever was granted before (deck updates).
+    apply: function (doc, d, opts) {
+      opts = opts || {};
+      var c = d.content || {};
       var dropKeys = [], added = 0;
       doc.subjects = doc.subjects || []; doc.essays = doc.essays || []; doc.chains = doc.chains || []; doc.state = doc.state || {};
+      var granted = null;   // null = whole deck
 
       if (c.subject) {
+        var i = doc.subjects.findIndex(function (s) { return s.id === c.subject.id || (s.src && s.src.deck === d.id); });
+        var cur = i >= 0 ? doc.subjects[i] : null;
+        var prev = cur && cur.src ? (cur.src.tabs || null) : (cur ? null : []);
+        if (opts.all) granted = null;
+        else if (opts.tabs && opts.tabs.length) granted = prev === null ? null : prev.concat(opts.tabs.filter(function (t) { return prev.indexOf(t) < 0; }));
+        else granted = cur ? prev : null;
+
         var m = clone(c.subject);
-        m.src = src;
+        if (granted) m.tabs = m.tabs.filter(function (t) { return granted.indexOf(t.id) >= 0; });
+        m.src = { deck: d.id, v: d.version, by: d.by || '' };
+        if (granted) m.src.tabs = granted;
         var masterIds = {};
         m.tabs.forEach(function (t) { t.lk = 1; t.cards.forEach(function (cd) { cd.lk = 1; masterIds[cd.id] = true; }); });
-        var i = doc.subjects.findIndex(function (s) { return s.id === m.id || (s.src && s.src.deck === d.id); });
-        if (i < 0) {
+        if (!cur) {
           doc.subjects.push(m);
           added = Object.keys(masterIds).length;
         } else {
-          var cur = doc.subjects[i], had = {};
+          var had = {};
           cur.tabs.forEach(function (t) { t.cards.forEach(function (cd) { had[cd.id] = cd; }); });
           var mine = function (cd) { return !cd.lk && !masterIds[cd.id]; };
           var tabs = m.tabs.map(function (mt) {
@@ -119,34 +133,38 @@
           if (cur.examDate) m.examDate = cur.examDate;      // the student's own exam date wins
           doc.subjects[i] = m;
         }
+      } else if (opts.all === undefined && !opts.tabs) {
+        granted = null;
       }
 
-      (c.essays || []).forEach(function (e0) {
-        var e = clone(e0); e.lk = 1; e.src = src;
-        var j = doc.essays.findIndex(function (x) { return x.id === e.id; });
-        if (j < 0) doc.essays.push(e);
-        else { if (doc.essays[j].folderId) e.folderId = doc.essays[j].folderId; doc.essays[j] = e; }
-      });
-
-      var keepChains = {};
-      (c.chains || []).forEach(function (c0) {
-        var ch = clone(c0); ch.lk = 1; ch.src = src; keepChains[ch.id] = true;
-        var j = doc.chains.findIndex(function (x) { return x.id === ch.id; });
-        if (j < 0) { doc.chains.push(ch); added += ch.sentences.length; return; }
-        var old = doc.chains[j];
-        var sids = ch.sentences.map(function (sn) { return sn.id; });
-        old.sentences.forEach(function (sn) { if (sids.indexOf(sn.id) < 0) dropKeys.push('c:' + ch.id + ':' + sn.id); });
-        if (old.folderId) ch.folderId = old.folderId;
-        if (!Merge.deq(old.sentences, ch.sentences)) delete doc.state['o:' + ch.id];   // order changed → re-earn it
-        doc.chains[j] = ch;
-      });
-      // chains this deck used to contain but no longer does
-      doc.chains = doc.chains.filter(function (ch) {
-        if (!ch.lk || !ch.src || ch.src.deck !== d.id || keepChains[ch.id]) return true;
-        ch.sentences.forEach(function (sn) { dropKeys.push('c:' + ch.id + ':' + sn.id); });
-        dropKeys.push('o:' + ch.id);
-        return false;
-      });
+      // Essays and chains that ride along with a subject only come with the WHOLE deck.
+      if (!granted) {
+        var src = { deck: d.id, v: d.version, by: d.by || '' };
+        (c.essays || []).forEach(function (e0) {
+          var e = clone(e0); e.lk = 1; e.src = src;
+          var j = doc.essays.findIndex(function (x) { return x.id === e.id; });
+          if (j < 0) doc.essays.push(e);
+          else { if (doc.essays[j].folderId) e.folderId = doc.essays[j].folderId; doc.essays[j] = e; }
+        });
+        var keepChains = {};
+        (c.chains || []).forEach(function (c0) {
+          var ch = clone(c0); ch.lk = 1; ch.src = src; keepChains[ch.id] = true;
+          var j = doc.chains.findIndex(function (x) { return x.id === ch.id; });
+          if (j < 0) { doc.chains.push(ch); added += ch.sentences.length; return; }
+          var old = doc.chains[j];
+          var sids = ch.sentences.map(function (sn) { return sn.id; });
+          old.sentences.forEach(function (sn) { if (sids.indexOf(sn.id) < 0) dropKeys.push('c:' + ch.id + ':' + sn.id); });
+          if (old.folderId) ch.folderId = old.folderId;
+          if (!Merge.deq(old.sentences, ch.sentences)) delete doc.state['o:' + ch.id];   // order changed → re-earn it
+          doc.chains[j] = ch;
+        });
+        doc.chains = doc.chains.filter(function (ch) {
+          if (!ch.lk || !ch.src || ch.src.deck !== d.id || keepChains[ch.id]) return true;
+          ch.sentences.forEach(function (sn) { dropKeys.push('c:' + ch.id + ':' + sn.id); });
+          dropKeys.push('o:' + ch.id);
+          return false;
+        });
+      }
       dropKeys.forEach(function (k) { delete doc.state[k]; });
       return { added: added, removed: dropKeys.length };
     }
@@ -283,13 +301,25 @@
         (r2.data || []).forEach(function (d) {
           var by = ST.tutors[d.owner_id] || 'your tutor';
           var was = inst[d.id];
-          var res2 = Deck.apply(Store.data(), { id: d.id, version: d.version, content: d.content, by: by });
+          var grant = was ? {} : grantFor(d.id);
+          var res2 = Deck.apply(Store.data(), { id: d.id, version: d.version, content: d.content, by: by }, grant);
           msgs.push(was ? by + ' updated “' + d.title + '”' + (res2.added ? ' · ' + U.plural(res2.added, 'new card') : '')
                         : by + ' added “' + d.title + '” to your Anchor');
         });
         if (msgs.length) { Store.save(); FX.toast('⚓ ' + msgs.join(' · '), 'green', 4200); }
       });
     });
+  }
+
+  // Which tabs this student's active homework grants for a deck (all = no tab limit).
+  function grantFor(deckId) {
+    var tabs = [], all = false;
+    ST.assigns.forEach(function (a) {
+      if (a.deck_id !== deckId || a.status === 'archived') return;
+      if (a.scope && a.scope.tabs && a.scope.tabs.length) a.scope.tabs.forEach(function (t) { if (tabs.indexOf(t) < 0) tabs.push(t); });
+      else all = true;
+    });
+    return all || !tabs.length ? { all: true } : { tabs: tabs };
   }
 
   function checkCompletions() {

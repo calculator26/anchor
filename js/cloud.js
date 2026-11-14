@@ -89,7 +89,7 @@
   }
   function savedUser() { try { return localStorage.getItem(USERKEY) || ''; } catch (e) { return ''; } }
   function applyTheme() {
-    document.documentElement.setAttribute('data-theme', Store.data().settings.theme || 'dark');
+    document.documentElement.setAttribute('data-theme', Store.data().settings.theme || 'light');
   }
 
   /* --- boot -------------------------------------------------------------- */
